@@ -4,7 +4,7 @@ import plotly.express as px
 from pandas_datareader import wb
 import datetime
 import numpy as np
-import os # Importamos OS para manejar rutas de archivos
+import os
 from streamlit_option_menu import option_menu
 
 # --- 1. CONFIGURACIÓN TÉCNICA ---
@@ -115,7 +115,6 @@ def load_data():
         status = "⚠️ Offline (WB)"
 
     # --- B. DATOS ARCHIVOS CSV (CARPETA data/) ---
-    # Usamos os.path para construir la ruta absoluta y evitar errores de "file not found"
     current_dir = os.path.dirname(os.path.abspath(__file__))
     data_path = os.path.join(current_dir, 'data')
     
@@ -129,34 +128,71 @@ def load_data():
         # 1. ANEMIA
         file_anemia = os.path.join(data_path, "anemia.csv")
         if os.path.exists(file_anemia):
-            df_anemia = pd.read_csv(file_anemia)
+            # Intentar diferentes encodings
+            try:
+                df_anemia = pd.read_csv(file_anemia)
+            except:
+                df_anemia = pd.read_csv(file_anemia, encoding='latin-1')
+            
             if 'Anemia' in df_anemia.columns and 'Evaluados' in df_anemia.columns:
                  df_anemia = df_anemia.groupby('Año')[['Anemia', 'Evaluados']].sum().reset_index()
                  df_anemia['Porcentaje'] = (df_anemia['Anemia'] / df_anemia['Evaluados']) * 100
 
-        # 2. MÉDICOS (Nota: El CSV tiene 4 filas de encabezado extra, usamos header=4)
+        # 2. MÉDICOS (Lógica Blindada)
         file_medicos = os.path.join(data_path, "medicos.csv")
         if os.path.exists(file_medicos):
-            df_medicos_raw = pd.read_csv(file_medicos, header=4)
-            if 'Departamento' in df_medicos_raw.columns:
+            df_medicos_raw = None
+            # Estrategia 1: Carga estándar UTF-8, header 4
+            try:
+                df_medicos_raw = pd.read_csv(file_medicos, header=4)
+            except:
+                pass
+            
+            # Estrategia 2: Encoding Latin-1 si falló lo anterior
+            if df_medicos_raw is None:
+                try:
+                    df_medicos_raw = pd.read_csv(file_medicos, header=4, encoding='latin-1')
+                except:
+                    pass
+            
+            # Estrategia 3: Separador de punto y coma (común en latam)
+            if df_medicos_raw is None or 'Departamento' not in df_medicos_raw.columns:
+                try:
+                    df_medicos_raw = pd.read_csv(file_medicos, header=4, sep=';', encoding='latin-1')
+                except:
+                    pass
+
+            # Procesamiento si cargó
+            if df_medicos_raw is not None and 'Departamento' in df_medicos_raw.columns:
+                # Buscamos la fila Total
                 df_medicos = df_medicos_raw[df_medicos_raw['Departamento'].str.contains('Total', case=False, na=False)]
-                df_medicos = df_medicos.melt(id_vars=['Departamento'], var_name='Año', value_name='Habitantes')
-                df_medicos['Año'] = pd.to_numeric(df_medicos['Año'], errors='coerce')
-                df_medicos = df_medicos.dropna(subset=['Año'])
-                df_medicos = df_medicos.sort_values('Año')
+                if not df_medicos.empty:
+                    df_medicos = df_medicos.melt(id_vars=['Departamento'], var_name='Año', value_name='Habitantes')
+                    df_medicos['Año'] = pd.to_numeric(df_medicos['Año'], errors='coerce')
+                    df_medicos['Habitantes'] = pd.to_numeric(df_medicos['Habitantes'], errors='coerce')
+                    df_medicos = df_medicos.dropna(subset=['Año', 'Habitantes'])
+                    df_medicos = df_medicos.sort_values('Año')
+                else:
+                    print("Aviso: No se encontró la fila 'Total' en medicos.csv")
         
-        # 3. INSEGURIDAD (Nota: Tiene 1 fila de título extra, usamos header=1)
+        # 3. INSEGURIDAD
         file_inseguridad = os.path.join(data_path, "inseguridad.csv")
         if os.path.exists(file_inseguridad):
-            df_inseguridad = pd.read_csv(file_inseguridad, header=1)
+            try:
+                df_inseguridad = pd.read_csv(file_inseguridad, header=1)
+            except:
+                df_inseguridad = pd.read_csv(file_inseguridad, header=1, encoding='latin-1')
         
-        # 4. VICTIMIZACIÓN (Nota: Tiene 1 fila de título extra, usamos header=1)
+        # 4. VICTIMIZACIÓN
         file_victimizacion = os.path.join(data_path, "victimizacion.csv")
         if os.path.exists(file_victimizacion):
-            df_victimizacion = pd.read_csv(file_victimizacion, header=1)
+            try:
+                df_victimizacion = pd.read_csv(file_victimizacion, header=1)
+            except:
+                df_victimizacion = pd.read_csv(file_victimizacion, header=1, encoding='latin-1')
         
     except Exception as e:
-        print(f"Error cargando CSVs: {e}")
+        print(f"Error global cargando CSVs: {e}")
 
     # --- C. DATOS MANUALES (Educación) ---
     df_edu_analfa = pd.DataFrame({
@@ -439,7 +475,7 @@ def view_indicadores():
                 fig_anemia = px.line(df_anemia, x='Año', y='Porcentaje', template='plotly_white', markers=True)
                 fig_anemia.update_traces(line_color='#DC2626', line_width=3)
                 st.plotly_chart(fig_anemia, use_container_width=True)
-            else: st.info("Sube el archivo 'anemia.csv' a la carpeta data/ en GitHub.")
+            else: st.info("Verificando 'anemia.csv' en data/...")
             st.markdown('</div>', unsafe_allow_html=True)
         with c2:
             st.markdown('<div class="radio-card"><div class="radio-title">Habitantes por Médico (Nacional)</div>', unsafe_allow_html=True)
@@ -447,7 +483,7 @@ def view_indicadores():
                 fig_med = px.line(df_medicos, x='Año', y='Habitantes', template='plotly_white', markers=True)
                 fig_med.update_traces(line_color='#059669', line_width=3)
                 st.plotly_chart(fig_med, use_container_width=True)
-            else: st.info("Sube el archivo 'medicos.csv' a la carpeta data/ en GitHub.")
+            else: st.info("Verificando 'medicos.csv' en data/...")
             st.markdown('</div>', unsafe_allow_html=True)
 
     # SECCIÓN 5: SEGURIDAD (CSVs Locales data/)
@@ -462,7 +498,7 @@ def view_indicadores():
                 fig_ins.update_traces(marker_color='#374151')
                 fig_ins.update_layout(yaxis=dict(autorange="reversed")) # Para que el mayor salga arriba
                 st.plotly_chart(fig_ins, use_container_width=True)
-            else: st.info("Sube el archivo 'inseguridad.csv' a la carpeta data/ en GitHub.")
+            else: st.info("Verificando 'inseguridad.csv' en data/...")
             st.markdown('</div>', unsafe_allow_html=True)
         with c2:
             st.markdown('<div class="radio-card"><div class="radio-title">Victimización Nacional (Histórico)</div>', unsafe_allow_html=True)
@@ -470,7 +506,7 @@ def view_indicadores():
                 fig_vic = px.line(df_victimizacion, x='AÑO', y='VALOR', template='plotly_white', markers=True)
                 fig_vic.update_traces(line_color='#9F1239')
                 st.plotly_chart(fig_vic, use_container_width=True)
-            else: st.info("Sube el archivo 'victimizacion.csv' a la carpeta data/ en GitHub.")
+            else: st.info("Verificando 'victimizacion.csv' en data/...")
             st.markdown('</div>', unsafe_allow_html=True)
 
     # SECCIONES 6, 7, 8 (Dummy Placeholder)
