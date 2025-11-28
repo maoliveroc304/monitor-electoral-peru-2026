@@ -6,3 +6,4 @@ requests
 openpyxl
 numpy
 setuptools
+streamlit-option-menu
