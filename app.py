@@ -14,7 +14,7 @@ st.set_page_config(
     page_icon="🇵🇪"
 )
 
-# --- CSS PERSONALIZADO (REFINADO PARA IGUALAR TU IMAGEN) ---
+# --- CSS PERSONALIZADO ---
 def local_css():
     st.markdown("""
     <style>
@@ -35,21 +35,11 @@ def local_css():
             border-right: 1px solid #E2E8F0;
         }
 
-        /* Títulos Principales */
-        h1 {
-            font-weight: 800;
-            color: #0F172A;
-            font-size: 2.2rem;
-            margin-bottom: 0.5rem;
-        }
-        .intro-text {
-            color: #64748B;
-            font-size: 1rem;
-            line-height: 1.6;
-            margin-bottom: 2rem;
-        }
+        /* Títulos */
+        h1 { font-weight: 800; color: #0F172A; font-size: 2.2rem; margin-bottom: 0.5rem; }
+        .intro-text { color: #64748B; font-size: 1rem; line-height: 1.6; margin-bottom: 2rem; }
 
-        /* TARJETAS KPI (Estilo idéntico a la imagen) */
+        /* TARJETAS KPI */
         .kpi-card {
             background-color: #FFFFFF;
             padding: 20px;
@@ -57,104 +47,60 @@ def local_css():
             border: 1px solid #E2E8F0;
             box-shadow: 0 1px 3px rgba(0,0,0,0.05);
             height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
         }
-        .kpi-label {
-            color: #64748B;
-            font-size: 0.85rem;
-            font-weight: 500;
-            margin-bottom: 8px;
-        }
-        .kpi-value {
-            color: #0F172A;
-            font-size: 1.5rem;
-            font-weight: 700;
-        }
+        .kpi-label { color: #64748B; font-size: 0.85rem; font-weight: 500; margin-bottom: 8px; }
+        .kpi-value { color: #0F172A; font-size: 1.5rem; font-weight: 700; }
+        .kpi-subtitle { font-size: 0.75rem; color: #94A3B8; margin-top: 4px; font-weight: 400; }
 
-        /* TABLA DE CANDIDATOS (Estilo "Vista Previa") */
+        /* TABLA DE CANDIDATOS (HOME) */
         .table-header {
-            display: flex;
-            padding: 12px 16px;
-            border-bottom: 1px solid #F1F5F9;
-            background-color: #FAFAF9;
-            border-top-left-radius: 12px;
-            border-top-right-radius: 12px;
-            margin-top: 20px;
+            display: flex; padding: 12px 16px; border-bottom: 1px solid #F1F5F9;
+            background-color: #FAFAF9; border-top-left-radius: 12px; border-top-right-radius: 12px; margin-top: 20px;
         }
-        .col-header {
-            font-size: 0.75rem;
-            color: #64748B;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
+        .col-header { font-size: 0.75rem; color: #64748B; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
         .candidate-row-clean {
-            display: flex;
-            align-items: center;
-            padding: 16px;
+            display: flex; align-items: center; padding: 16px; background-color: #FFFFFF;
+            border-bottom: 1px solid #F1F5F9; transition: background 0.2s;
+        }
+        .candidate-row-clean:last-child { border-bottom-left-radius: 12px; border-bottom-right-radius: 12px; border-bottom: none; }
+        .candidate-row-clean:hover { background-color: #F8FAFC; }
+        .cand-name { font-weight: 600; color: #0F172A; font-size: 0.95rem; }
+        .cand-party { color: #64748B; font-size: 0.9rem; }
+        .btn-link { color: #2563EB; font-weight: 600; font-size: 0.85rem; text-decoration: none; cursor: pointer; }
+
+        /* TARJETAS DE GRID (SECCIÓN CANDIDATOS) - RESTAURADO */
+        .cand-grid-card {
             background-color: #FFFFFF;
-            border-bottom: 1px solid #F1F5F9;
-            transition: background 0.2s;
+            padding: 24px;
+            border-radius: 16px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            border: 1px solid #F1F5F9;
+            margin-bottom: 20px;
+            text-align: center;
+            height: 100%;
+            transition: transform 0.2s;
         }
-        .candidate-row-clean:last-child {
-            border-bottom-left-radius: 12px;
-            border-bottom-right-radius: 12px;
-            border-bottom: none; /* Quitar borde al último */
+        .cand-grid-card:hover { transform: translateY(-3px); border-color: #3B82F6; }
+        .cand-grid-btn {
+            display: block; width: 100%; padding: 10px; margin-top: 15px;
+            background-color: #EFF6FF; color: #2563EB; border-radius: 8px;
+            text-decoration: none; font-weight: 600; font-size: 0.9rem;
         }
-        .candidate-row-clean:hover {
-            background-color: #F8FAFC;
-        }
-        .cand-name {
-            font-weight: 600;
-            color: #0F172A;
-            font-size: 0.95rem;
-        }
-        .cand-party {
-            color: #64748B;
-            font-size: 0.9rem;
-        }
-        .btn-link {
-            color: #2563EB;
-            font-weight: 600;
-            font-size: 0.85rem;
-            text-decoration: none;
-            cursor: pointer;
-        }
+        .cand-grid-btn:hover { background-color: #DBEAFE; }
 
         /* VIDEO LIBRARY */
-        .video-card {
-            background: white;
-            border-radius: 12px;
-            overflow: hidden;
-            border: 1px solid #E2E8F0;
-            margin-bottom: 20px;
-        }
-        .video-title {
-            padding: 12px 16px;
-            font-weight: 600;
-            font-size: 0.95rem;
-            color: #0F172A;
-            border-bottom: 1px solid #F1F5F9;
-        }
+        .video-card { background: white; border-radius: 12px; overflow: hidden; border: 1px solid #E2E8F0; margin-bottom: 20px; }
+        .video-title { padding: 12px 16px; font-weight: 600; font-size: 0.95rem; color: #0F172A; border-bottom: 1px solid #F1F5F9; }
 
         /* BOTTOM CARDS */
-        .bottom-card {
-            background: #FAFAFA;
-            padding: 20px;
-            border-radius: 8px;
-            margin-top: 20px;
-        }
-        .bottom-title {
-            font-weight: 700;
-            font-size: 0.95rem;
-            color: #0F172A;
-            margin-bottom: 5px;
-        }
-        .bottom-desc {
-            font-size: 0.85rem;
-            color: #64748B;
-        }
+        .bottom-card { background: #FAFAFA; padding: 20px; border-radius: 8px; margin-top: 20px; }
+        .bottom-title { font-weight: 700; font-size: 0.95rem; color: #0F172A; margin-bottom: 5px; }
+        .bottom-desc { font-size: 0.85rem; color: #64748B; }
         
-        /* ESTILOS SIDEBAR (Ya aprobados) */
+        /* SIDEBAR */
         .sidebar-header { padding: 20px 10px 30px 10px; display: flex; align-items: center; }
         .sidebar-logo { width: 40px; height: 40px; background: #0F172A; border-radius: 50%; color: white; display: flex; justify-content: center; align-items: center; font-weight: bold; margin-right: 12px; }
         .sidebar-main-title { font-weight: 700; color: #0F172A; font-size: 15px; }
@@ -168,7 +114,6 @@ local_css()
 # --- 2. DATOS ---
 @st.cache_data(ttl=3600)
 def load_data():
-    # WB Data
     try:
         indicators = {'NY.GDP.MKTP.KD.ZG': 'PIB', 'SL.UEM.TOTL.ZS': 'Desempleo', 'SI.POV.NAHC': 'Pobreza'}
         wb_data = wb.download(indicator=list(indicators.keys()), country=['PE'], start=2000, end=datetime.datetime.now().year)
@@ -178,7 +123,6 @@ def load_data():
         wb_data = pd.DataFrame()
         status = "⚠️ Offline"
 
-    # Candidatos (Datos para la tabla visual)
     df_cand = pd.DataFrame({
         'Nombre': ['Ana García', 'Luis Martínez', 'Carla Torres', 'Jorge Quispe'],
         'Partido': ['Partido del Progreso', 'Frente Democrático', 'Renovación Nacional', 'Unidad Peruana'],
@@ -190,7 +134,6 @@ def load_data():
         ]
     })
     
-    # Propuestas Dummy
     df_prop = pd.DataFrame({
         'Candidato': ['Ana García', 'Luis Martínez'],
         'Eje': ['Salud', 'Seguridad'],
@@ -199,7 +142,6 @@ def load_data():
         'Tipo': ['Programa', 'Ley']
     })
 
-    # Manual Data
     df_man = pd.DataFrame({'year': np.arange(2018,2025), 'Homicidios': [6,7,8,9,10,11,12]})
     
     return df_cand, df_prop, wb_data, df_man, status
@@ -208,11 +150,13 @@ df_cand, df_prop, df_wb, df_man, status_msg = load_data()
 
 # --- 3. COMPONENTES VISUALES ---
 
-def kpi_box(label, value):
+def kpi_box(label, value, subtitle=None):
+    subtitle_html = f'<div class="kpi-subtitle">{subtitle}</div>' if subtitle else ''
     st.markdown(f"""
     <div class="kpi-card">
         <div class="kpi-label">{label}</div>
         <div class="kpi-value">{value}</div>
+        {subtitle_html}
     </div>
     """, unsafe_allow_html=True)
 
@@ -242,10 +186,13 @@ def render_bottom_card(title, desc):
     </div>
     """, unsafe_allow_html=True)
 
+def render_section_header(title, subtitle):
+    st.markdown(f"## {title}")
+    st.markdown(f"<p style='color: #64748B; margin-top: -10px; margin-bottom: 25px;'>{subtitle}</p>", unsafe_allow_html=True)
+
 # --- 4. VISTAS ---
 
 def view_inicio():
-    # 1. TÍTULO Y TEXTO INTRODUCTORIO
     st.markdown("# Monitor Electoral Perú 2026")
     st.markdown("<div style='color:#64748B; margin-top:-10px; margin-bottom:20px;'>Tu plataforma para un voto informado.</div>", unsafe_allow_html=True)
     
@@ -256,18 +203,19 @@ def view_inicio():
     </div>
     """, unsafe_allow_html=True)
 
-    # 2. TARJETAS KPI (ESTILO IMAGEN)
+    # KPIS (Días dinámicos)
+    today = datetime.date.today()
+    election_date = datetime.date(2026, 4, 12)
+    days_left = (election_date - today).days
+    
     c1, c2, c3 = st.columns(3)
     with c1: kpi_box("Enlaces Oficiales", "JNE, ONPE")
     with c2: kpi_box("Partidos en Carrera", "15")
-    with c3: kpi_box("Días para la elección", "720") # Valor estático como en tu imagen, o usa calc dinámica
+    with c3: kpi_box("Días para la elección", f"{days_left}", "12 de Abril, 2026") 
     
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # 3. TABLA DE CANDIDATOS (VISTA PREVIA)
     st.markdown("### Candidatos Presidenciales (Vista Previa)")
-    
-    # Header de la tabla (Falso, hecho con CSS)
     st.markdown("""
     <div class="table-header">
         <div style="width: 50px; margin-right: 15px;"></div>
@@ -277,7 +225,6 @@ def view_inicio():
     </div>
     """, unsafe_allow_html=True)
     
-    # Filas de la tabla (Contenedor blanco con bordes)
     st.markdown('<div style="background: white; border: 1px solid #E2E8F0; border-top: none; border-bottom-left-radius: 12px; border-bottom-right-radius: 12px;">', unsafe_allow_html=True)
     for _, row in df_cand.head(3).iterrows():
         render_candidate_table_row(row['Foto'], row['Nombre'], row['Partido'])
@@ -285,34 +232,42 @@ def view_inicio():
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # 4. BIBLIOTECA DE VIDEOS
     st.markdown("### Biblioteca de Videos")
-    
     col_vid1, col_vid2 = st.columns(2)
-    
     with col_vid1:
         st.markdown('<div class="video-card">', unsafe_allow_html=True)
         st.markdown('<div class="video-title">🗳️ Cédula de votación y cómo votar</div>', unsafe_allow_html=True)
-        # Video A (ONPE)
         st.video("https://www.youtube.com/watch?v=cJ5UuJJRfNQ")
         st.markdown('</div>', unsafe_allow_html=True)
-        
     with col_vid2:
         st.markdown('<div class="video-card">', unsafe_allow_html=True)
         st.markdown('<div class="video-title">🚫 #EleccionesSinFake | 6 recomendaciones</div>', unsafe_allow_html=True)
-        # Video B (Fake News)
         st.video("https://www.youtube.com/watch?v=n44WJaYtZrs")
         st.markdown('</div>', unsafe_allow_html=True)
 
-    # 5. TARJETAS INFERIORES (TEXTO)
     c_bottom1, c_bottom2 = st.columns(2)
-    with c_bottom1:
-        render_bottom_card("Análisis de Propuestas Electorales", "Expertos debaten los planes de gobierno.")
-    with c_bottom2:
-        render_bottom_card("¿Cómo funciona el Voto Electrónico?", "Una guía paso a paso para el elector.")
+    with c_bottom1: render_bottom_card("Análisis de Propuestas Electorales", "Expertos debaten los planes de gobierno.")
+    with c_bottom2: render_bottom_card("¿Cómo funciona el Voto Electrónico?", "Una guía paso a paso para el elector.")
 
 
-# --- VISTAS SECUNDARIAS (SIMPLIFICADAS PARA AHORRAR ESPACIO) ---
+def view_candidatos():
+    # --- VISTA RESTAURADA DE GRID ---
+    render_section_header("Candidatos", "Directorio completo de aspirantes a la presidencia.")
+    
+    # Grid de tarjetas
+    cols = st.columns(3)
+    for idx, row in df_cand.iterrows():
+        with cols[idx % 3]: # Distribuye en 3 columnas
+            st.markdown(f"""
+            <div class="cand-grid-card">
+                <img src="{row['Foto']}" style="width: 80px; height: 80px; border-radius: 50%; margin-bottom: 15px;">
+                <h4 style="margin:0; font-size:1.1rem; color: #0F172A; font-weight: 700;">{row['Nombre']}</h4>
+                <p style="color: #64748B; font-size:0.9rem; margin-bottom: 15px;">{row['Partido']}</p>
+                <a href="#" class="cand-grid-btn">Ver Plan de Gobierno</a>
+            </div>
+            """, unsafe_allow_html=True)
+
+# --- VISTAS SECUNDARIAS ---
 def view_planes():
     st.title("Planes de Gobierno")
     st.info("Sección en construcción...")
@@ -357,7 +312,7 @@ with st.sidebar:
 
 # ROUTER
 if selected == "Inicio": view_inicio()
-elif selected == "Candidatos": view_inicio() # Reusamos vista inicio por ahora
+elif selected == "Candidatos": view_candidatos() # Ahora apunta a la función correcta
 elif selected == "Planes de Gobierno": view_planes()
 elif selected == "Indicadores Nacionales": view_indicadores()
 elif selected == "Participación Ciudadana": view_participacion()
