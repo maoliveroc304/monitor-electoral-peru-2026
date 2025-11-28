@@ -71,7 +71,7 @@ def local_css():
         .cand-party { color: #64748B; font-size: 0.9rem; }
         .btn-link { color: #2563EB; font-weight: 600; font-size: 0.85rem; text-decoration: none; cursor: pointer; }
 
-        /* TARJETAS DE GRID (SECCIÓN CANDIDATOS) - RESTAURADO */
+        /* TARJETAS DE GRID (SECCIÓN CANDIDATOS) */
         .cand-grid-card {
             background-color: #FFFFFF;
             padding: 24px;
@@ -90,6 +90,26 @@ def local_css():
             text-decoration: none; font-weight: 600; font-size: 0.9rem;
         }
         .cand-grid-btn:hover { background-color: #DBEAFE; }
+
+        /* TARJETAS DE PROPUESTAS */
+        .prop-card {
+            background-color: #FFFFFF;
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid #F1F5F9;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+            height: 100%;
+        }
+        .prop-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+            background-color: #F1F5F9;
+            color: #475569;
+        }
 
         /* VIDEO LIBRARY */
         .video-card { background: white; border-radius: 12px; overflow: hidden; border: 1px solid #E2E8F0; margin-bottom: 20px; }
@@ -135,14 +155,20 @@ def load_data():
     })
     
     df_prop = pd.DataFrame({
-        'Candidato': ['Ana García', 'Luis Martínez'],
-        'Eje': ['Salud', 'Seguridad'],
-        'Texto': ['Hospitales digitales...', 'Cárceles de alta seguridad...'],
-        'Subtema': ['Telemedicina', 'Crimen Organizado'],
-        'Tipo': ['Programa', 'Ley']
+        'Candidato': ['Ana García', 'Luis Martínez', 'Carla Torres', 'Ana García', 'Luis Martínez'],
+        'Eje': ['Salud', 'Salud', 'Seguridad', 'Economía', 'Economía'],
+        'Subtema': ['Reforma del SIS', 'Telemedicina', 'Plan Bukele', 'Impuestos', 'Inversión Minera'],
+        'Texto': [
+            'Unificación del sistema de salud bajo un único pagador y digitalización al 100% de historias clínicas.',
+            'Implementación de 5,000 postas médicas digitales en zonas rurales conectadas con internet satelital.',
+            'Construcción de megacárceles de alta seguridad y reforma del código penal.',
+            'Reducción temporal del IGV al 16% para reactivar el consumo.',
+            'Desbloqueo inmediato de proyectos mineros con nuevo esquema de canon comunal.'
+        ],
+        'Tipo': ['Ley', 'Programa', 'Infraestructura', 'Decreto', 'Gestión']
     })
 
-    df_man = pd.DataFrame({'year': np.arange(2018,2025), 'Homicidios': [6,7,8,9,10,11,12]})
+    df_man = pd.DataFrame({'year': np.arange(2018,2025), 'Homicidios': [6,7,8,9,10,11,12], 'Victimizacion': [26.0, 26.5, 27.0, 22.0, 25.5, 28.0, 30.5]})
     
     return df_cand, df_prop, wb_data, df_man, status
 
@@ -189,6 +215,15 @@ def render_bottom_card(title, desc):
 def render_section_header(title, subtitle):
     st.markdown(f"## {title}")
     st.markdown(f"<p style='color: #64748B; margin-top: -10px; margin-bottom: 25px;'>{subtitle}</p>", unsafe_allow_html=True)
+
+def render_proposal_card(subtema, tipo, texto):
+    st.markdown(f"""
+    <div class="prop-card">
+        <div class="prop-badge">{tipo}</div>
+        <h4 style="margin:0; font-size:1.1rem; color:#0F172A;">{subtema}</h4>
+        <p style="color:#334155; margin-top:10px; font-size:0.95rem; line-height:1.5;">{texto}</p>
+    </div>
+    """, unsafe_allow_html=True)
 
 # --- 4. VISTAS ---
 
@@ -253,11 +288,9 @@ def view_inicio():
 def view_candidatos():
     # --- VISTA RESTAURADA DE GRID ---
     render_section_header("Candidatos", "Directorio completo de aspirantes a la presidencia.")
-    
-    # Grid de tarjetas
     cols = st.columns(3)
     for idx, row in df_cand.iterrows():
-        with cols[idx % 3]: # Distribuye en 3 columnas
+        with cols[idx % 3]: 
             st.markdown(f"""
             <div class="cand-grid-card">
                 <img src="{row['Foto']}" style="width: 80px; height: 80px; border-radius: 50%; margin-bottom: 15px;">
@@ -267,14 +300,79 @@ def view_candidatos():
             </div>
             """, unsafe_allow_html=True)
 
-# --- VISTAS SECUNDARIAS ---
 def view_planes():
-    st.title("Planes de Gobierno")
-    st.info("Sección en construcción...")
+    # --- VISTA RESTAURADA DE COMPARADOR (TEXTO) ---
+    render_section_header("Planes de Gobierno", "Comparador inteligente de propuestas electorales.")
+    
+    with st.container():
+        # Filtros con estilo de tarjeta
+        st.markdown('<div style="background:white; padding:20px; border-radius:12px; border:1px solid #E2E8F0; margin-bottom:20px;">', unsafe_allow_html=True)
+        c1, c2, c3 = st.columns(3)
+        with c1: cand_a = st.selectbox("Candidato A", df_prop['Candidato'].unique(), index=0)
+        with c2: cand_b = st.selectbox("Candidato B", df_prop['Candidato'].unique(), index=1)
+        with c3: eje = st.selectbox("Eje Temático", df_prop['Eje'].unique())
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+    col_a, col_b = st.columns(2)
+    
+    # Propuesta A
+    with col_a:
+        st.markdown(f"### {cand_a}")
+        prop_a = df_prop[(df_prop['Candidato'] == cand_a) & (df_prop['Eje'] == eje)]
+        if not prop_a.empty:
+            row = prop_a.iloc[0]
+            render_proposal_card(row['Subtema'], row['Tipo'], row['Texto'])
+        else:
+            st.warning("Sin propuestas en este eje.")
+
+    # Propuesta B
+    with col_b:
+        st.markdown(f"### {cand_b}")
+        prop_b = df_prop[(df_prop['Candidato'] == cand_b) & (df_prop['Eje'] == eje)]
+        if not prop_b.empty:
+            row = prop_b.iloc[0]
+            render_proposal_card(row['Subtema'], row['Tipo'], row['Texto'])
+        else:
+            st.warning("Sin propuestas en este eje.")
+
 
 def view_indicadores():
-    st.title("Indicadores Nacionales")
-    st.plotly_chart(px.line(df_wb, x='year', y='PIB', title="PIB"), use_container_width=True)
+    # --- VISTA RESTAURADA DE GRÁFICOS (TABS) ---
+    render_section_header("Indicadores Nacionales", f"Datos clave para el contexto país. Fuente: {status_msg}")
+    
+    tabs = st.tabs(["💰 Economía", "🛡️ Seguridad", "🏥 Social"])
+    
+    with tabs[0]:
+        st.markdown('<div class="kpi-card">', unsafe_allow_html=True)
+        st.markdown("#### Crecimiento del PIB (%)")
+        df_chart = df_wb.dropna(subset=['PIB'])
+        if not df_chart.empty:
+            fig = px.line(df_chart, x='year', y='PIB', template="plotly_white")
+            fig.update_traces(line_color="#2563EB", line_width=3)
+            fig.add_hline(y=0, line_dash="dash", line_color="red")
+            st.plotly_chart(fig, use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+    with tabs[1]:
+        st.markdown('<div class="kpi-card">', unsafe_allow_html=True)
+        st.markdown("#### Tasa de Homicidios (x 100k hab)")
+        fig = px.area(df_man, x='year', y='Homicidios', template="plotly_white")
+        fig.update_traces(line_color="#EF4444", fillcolor="rgba(239, 68, 68, 0.1)")
+        st.plotly_chart(fig, use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+    with tabs[2]:
+        st.markdown('<div class="kpi-card">', unsafe_allow_html=True)
+        st.markdown("#### Pobreza Monetaria Nacional (%)")
+        df_pov = df_wb.dropna(subset=['Pobreza'])
+        if not df_pov.empty:
+            fig = px.line(df_pov, x='year', y='Pobreza', markers=True, template="plotly_white")
+            fig.update_traces(line_color="#10B981")
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.warning("Datos no disponibles.")
+        st.markdown('</div>', unsafe_allow_html=True)
+
 
 def view_participacion():
     st.title("Participación")
@@ -312,8 +410,8 @@ with st.sidebar:
 
 # ROUTER
 if selected == "Inicio": view_inicio()
-elif selected == "Candidatos": view_candidatos() # Ahora apunta a la función correcta
-elif selected == "Planes de Gobierno": view_planes()
-elif selected == "Indicadores Nacionales": view_indicadores()
+elif selected == "Candidatos": view_candidatos()
+elif selected == "Planes de Gobierno": view_planes() # Restaurado
+elif selected == "Indicadores Nacionales": view_indicadores() # Restaurado
 elif selected == "Participación Ciudadana": view_participacion()
 elif selected == "Fuente de Datos": view_fuente()
