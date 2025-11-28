@@ -6,6 +6,7 @@ import datetime
 import numpy as np
 import os
 from streamlit_option_menu import option_menu
+from candidatos_data import obtener_data_candidatos
 
 # --- 1. CONFIGURACIÓN TÉCNICA ---
 st.set_page_config(
@@ -206,29 +207,27 @@ def load_data():
     })
 
     # --- D. CANDIDATOS Y PROPUESTAS ---
-    df_cand = pd.DataFrame({
-        'Nombre': ['Ana García', 'Luis Martínez', 'Carla Torres', 'Jorge Quispe'],
-        'Partido': ['Partido del Progreso', 'Frente Democrático', 'Renovación Nacional', 'Unidad Peruana'],
-        'Foto': [
-            'https://api.dicebear.com/7.x/avataaars/svg?seed=Ana&backgroundColor=b6e3f4', 
-            'https://api.dicebear.com/7.x/avataaars/svg?seed=Luis&backgroundColor=c0aede',
-            'https://api.dicebear.com/7.x/avataaars/svg?seed=Carla&backgroundColor=ffdfbf',
-            'https://api.dicebear.com/7.x/avataaars/svg?seed=Jorge&backgroundColor=d1d4f9'
-        ]
-    })
-    
+    # 1. CARGA DE CANDIDATOS REALES DESDE EL ARCHIVO EXTERNO
+    try:
+        df_cand = obtener_data_candidatos()
+    except Exception as e:
+        st.error(f"Error cargando candidatos: {e}")
+        # Fallback por si falla el archivo
+        df_cand = pd.DataFrame({'Nombre': [], 'Partido': [], 'Foto': []})
+
+    # 2. PROPUESTAS (Ajustamos para que coincidan algunos nombres reales si quieres, o déjalo dummy por ahora)
     df_prop = pd.DataFrame({
-        'Candidato': ['Ana García', 'Luis Martínez', 'Carla Torres', 'Ana García', 'Luis Martínez'],
-        'Eje': ['Salud', 'Salud', 'Seguridad', 'Economía', 'Economía'],
-        'Subtema': ['Reforma del SIS', 'Telemedicina', 'Plan Bukele', 'Impuestos', 'Inversión Minera'],
+        'Candidato': ['Keiko Fujimori', 'Rafael López Aliaga', 'César Acuña', 'Hernando de Soto', 'Susel Paredes'],
+        'Eje': ['Economía', 'Seguridad', 'Educación', 'Economía', 'Derechos Civiles'],
+        'Subtema': ['Plan Rescate 2026', 'Plan Bukele', 'Plata como Cancha para Educar', 'Capitalismo Popular', 'Unión Civil'],
         'Texto': [
-            'Unificación del sistema de salud bajo un único pagador y digitalización al 100% de historias clínicas.',
-            'Implementación de 5,000 postas médicas digitales en zonas rurales conectadas con internet satelital.',
-            'Construcción de megacárceles de alta seguridad y reforma del código penal.',
-            'Reducción temporal del IGV al 16% para reactivar el consumo.',
-            'Desbloqueo inmediato de proyectos mineros con nuevo esquema de canon comunal.'
+            'Propuesta de shock de inversiones y desbloqueo minero inmediato.',
+            'Creación de cárceles de máxima seguridad en zonas aisladas.',
+            'Inversión del 6% del PBI en infraestructura educativa universitaria.',
+            'Titulación masiva de propiedades informales para acceso a crédito.',
+            'Reconocimiento legal de uniones de hecho para parejas del mismo sexo.'
         ],
-        'Tipo': ['Ley', 'Programa', 'Infraestructura', 'Decreto', 'Gestión']
+        'Tipo': ['Decreto', 'Infraestructura', 'Ley', 'Programa', 'Ley']
     })
 
     return df_cand, df_prop, wb_data, df_anemia, df_medicos, df_inseguridad, df_victimizacion, df_edu_analfa, df_edu_deficit, status
