@@ -4,6 +4,7 @@ import plotly.express as px
 from pandas_datareader import wb
 import datetime
 import numpy as np
+import os # Importamos OS para manejar rutas de archivos
 from streamlit_option_menu import option_menu
 
 # --- 1. CONFIGURACIÓN TÉCNICA ---
@@ -95,7 +96,7 @@ def local_css():
 
 local_css()
 
-# --- 2. DATOS ---
+# --- 2. GESTIÓN DE DATOS ---
 @st.cache_data(ttl=3600)
 def load_data():
     # --- A. DATOS BANCO MUNDIAL (API EN VIVO) ---
@@ -114,6 +115,10 @@ def load_data():
         status = "⚠️ Offline (WB)"
 
     # --- B. DATOS ARCHIVOS CSV (CARPETA data/) ---
+    # Usamos os.path para construir la ruta absoluta y evitar errores de "file not found"
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    data_path = os.path.join(current_dir, 'data')
+    
     # Inicializamos vacíos
     df_anemia = pd.DataFrame()
     df_medicos = pd.DataFrame()
@@ -121,39 +126,37 @@ def load_data():
     df_victimizacion = pd.DataFrame()
 
     try:
-        # 1. ANEMIA (Procesamiento específico)
-        # Se asume que el archivo tiene columnas: Año, Evaluados, Anemia (como en tu captura)
-        # Ruta esperada: data/anemia.csv
-        df_anemia = pd.read_csv("data/anemia.csv")
-        # Agrupamos por año para sacar el % nacional
-        if 'Anemia' in df_anemia.columns and 'Evaluados' in df_anemia.columns:
-             df_anemia = df_anemia.groupby('Año')[['Anemia', 'Evaluados']].sum().reset_index()
-             df_anemia['Porcentaje'] = (df_anemia['Anemia'] / df_anemia['Evaluados']) * 100
+        # 1. ANEMIA
+        file_anemia = os.path.join(data_path, "anemia.csv")
+        if os.path.exists(file_anemia):
+            df_anemia = pd.read_csv(file_anemia)
+            if 'Anemia' in df_anemia.columns and 'Evaluados' in df_anemia.columns:
+                 df_anemia = df_anemia.groupby('Año')[['Anemia', 'Evaluados']].sum().reset_index()
+                 df_anemia['Porcentaje'] = (df_anemia['Anemia'] / df_anemia['Evaluados']) * 100
 
-        # 2. MÉDICOS (Procesamiento específico)
-        # Ruta esperada: data/medicos.csv
-        df_medicos_raw = pd.read_csv("data/medicos.csv")
-        # Buscamos la fila "Total" y convertimos columnas de años a filas
-        if 'Departamento' in df_medicos_raw.columns:
-            # Filtramos solo la fila Total
-            df_medicos = df_medicos_raw[df_medicos_raw['Departamento'].str.contains('Total', case=False, na=False)]
-            # Convertimos de ancho a largo (Melt)
-            df_medicos = df_medicos.melt(id_vars=['Departamento'], var_name='Año', value_name='Habitantes')
-            # Limpiamos años
-            df_medicos['Año'] = pd.to_numeric(df_medicos['Año'], errors='coerce')
-            df_medicos = df_medicos.dropna(subset=['Año'])
-            df_medicos = df_medicos.sort_values('Año')
+        # 2. MÉDICOS (Nota: El CSV tiene 4 filas de encabezado extra, usamos header=4)
+        file_medicos = os.path.join(data_path, "medicos.csv")
+        if os.path.exists(file_medicos):
+            df_medicos_raw = pd.read_csv(file_medicos, header=4)
+            if 'Departamento' in df_medicos_raw.columns:
+                df_medicos = df_medicos_raw[df_medicos_raw['Departamento'].str.contains('Total', case=False, na=False)]
+                df_medicos = df_medicos.melt(id_vars=['Departamento'], var_name='Año', value_name='Habitantes')
+                df_medicos['Año'] = pd.to_numeric(df_medicos['Año'], errors='coerce')
+                df_medicos = df_medicos.dropna(subset=['Año'])
+                df_medicos = df_medicos.sort_values('Año')
         
-        # 3. INSEGURIDAD
-        # Ruta esperada: data/inseguridad.csv
-        df_inseguridad = pd.read_csv("data/inseguridad.csv")
+        # 3. INSEGURIDAD (Nota: Tiene 1 fila de título extra, usamos header=1)
+        file_inseguridad = os.path.join(data_path, "inseguridad.csv")
+        if os.path.exists(file_inseguridad):
+            df_inseguridad = pd.read_csv(file_inseguridad, header=1)
         
-        # 4. VICTIMIZACIÓN
-        # Ruta esperada: data/victimizacion.csv
-        df_victimizacion = pd.read_csv("data/victimizacion.csv")
+        # 4. VICTIMIZACIÓN (Nota: Tiene 1 fila de título extra, usamos header=1)
+        file_victimizacion = os.path.join(data_path, "victimizacion.csv")
+        if os.path.exists(file_victimizacion):
+            df_victimizacion = pd.read_csv(file_victimizacion, header=1)
         
     except Exception as e:
-        print(f"Nota: Algunos archivos CSV no se encontraron en la carpeta 'data/'. Error: {e}")
+        print(f"Error cargando CSVs: {e}")
 
     # --- C. DATOS MANUALES (Educación) ---
     df_edu_analfa = pd.DataFrame({
@@ -163,10 +166,10 @@ def load_data():
     
     df_edu_deficit = pd.DataFrame({
         'Año': [2016, 2018, 2020, 2022],
-        'Servicios': [1200, 1150, 1100, 1050] # Datos simulados para mantener estructura visual si no hay csv específico
+        'Servicios': [1200, 1150, 1100, 1050]
     })
 
-    # --- D. CANDIDATOS Y PROPUESTAS (ESTÁTICO) ---
+    # --- D. CANDIDATOS Y PROPUESTAS ---
     df_cand = pd.DataFrame({
         'Nombre': ['Ana García', 'Luis Martínez', 'Carla Torres', 'Jorge Quispe'],
         'Partido': ['Partido del Progreso', 'Frente Democrático', 'Renovación Nacional', 'Unidad Peruana'],
