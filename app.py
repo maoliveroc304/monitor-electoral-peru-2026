@@ -7,7 +7,7 @@ import numpy as np
 import os
 from streamlit_option_menu import option_menu
 
-# IMPORTAR DATOS EXTERNOS DE CANDIDATOS
+# IMPORTAR DATOS EXTERNOS
 try:
     from candidatos_data import obtener_data_candidatos
 except ImportError:
@@ -52,6 +52,7 @@ def local_css():
             width: 280px !important;
         }
         
+        /* Ocultar botón de colapsar */
         [data-testid="collapsedControl"] {
             display: none;
         }
@@ -168,16 +169,15 @@ def load_data():
     current_dir = os.path.dirname(os.path.abspath(__file__))
     data_path = os.path.join(current_dir, 'data')
     
-    # Inicializar TODOS los DataFrames para evitar NameError
     df_anemia = pd.DataFrame()
     df_medicos = pd.DataFrame()
     df_inseguridad = pd.DataFrame()
     df_victimizacion = pd.DataFrame()
-    df_servicios = pd.DataFrame() 
-    df_internet = pd.DataFrame()  
-    df_bosques = pd.DataFrame() 
-    df_co2 = pd.DataFrame() 
-    df_gob = pd.DataFrame()      
+    df_servicios = pd.DataFrame()
+    df_internet = pd.DataFrame()
+    df_bosques = pd.DataFrame()
+    df_co2 = pd.DataFrame()
+    df_gob = pd.DataFrame()
     df_deuda = pd.DataFrame()
 
     try:
@@ -284,11 +284,13 @@ def render_proposal_card(subtema, tipo, texto):
     </div>
     """, unsafe_allow_html=True)
 
-# HELPER: GRÁFICO CON ZOOM INTELIGENTE (5 AÑOS)
 def plot_zoom_chart(df, x_col, y_col, color, chart_type='line'):
     if df.empty: return None
     
-    # Calcular rango inicial: Último año - 5
+    # Convertir a numérico
+    df[x_col] = pd.to_numeric(df[x_col], errors='coerce')
+    df = df.dropna(subset=[x_col])
+    
     max_x = df[x_col].max()
     min_x = max_x - 5
     
@@ -301,9 +303,9 @@ def plot_zoom_chart(df, x_col, y_col, color, chart_type='line'):
         
     fig.update_layout(
         xaxis=dict(
-            rangeslider=dict(visible=True), # Barra inferior visible
+            rangeslider=dict(visible=True),
             type="linear",
-            range=[min_x, max_x + 0.5] # Zoom inicial por defecto
+            range=[min_x, max_x + 0.5]
         ),
         margin=dict(l=0, r=0, t=0, b=0)
     )
@@ -352,7 +354,7 @@ def view_inicio():
 def view_candidatos():
     render_section_header("Candidatos", "Directorio completo de aspirantes a la presidencia.")
     
-    # Función de navegación interna
+    # Navegación con botones
     def go_to_plan(name):
         st.session_state['page_selection'] = 'Planes de Gobierno'
         st.session_state['selected_candidate'] = name
@@ -370,7 +372,6 @@ def view_candidatos():
             </div>
             """, unsafe_allow_html=True)
             
-            # Botón funcional con sesión
             if st.button(f"Ver Plan de Gobierno", key=f"btn_{idx}"):
                 go_to_plan(row['Nombre'])
 
@@ -536,47 +537,43 @@ def view_participacion():
 def view_fuente():
     st.json({"Fuente": "Banco Mundial + JNE + INEI + CEPAL + GFW"})
 
-# --- 5. NAVEGACIÓN ---
+# --- 5. NAVEGACIÓN (ESTADO) ---
 st.sidebar.markdown("""<div class="sidebar-header"><div class="sidebar-logo">ME</div><div><div class="sidebar-main-title">Monitor Electoral</div><div class="sidebar-subtitle">Perú 2026</div></div></div>""", unsafe_allow_html=True)
 
-# Lógica de navegación (Arreglo definitivo del menú)
-# Usamos una clave única para el estado de la página
 if 'page_selection' not in st.session_state:
     st.session_state['page_selection'] = 'Inicio'
 
-# Función callback para actualizar el estado cuando se hace clic en el menú
-def on_menu_change(key):
-    st.session_state['page_selection'] = st.session_state[key]
-
-# Mapeo de opciones para sincronización
 options = ["Inicio", "Candidatos", "Planes de Gobierno", "Indicadores Nacionales", "Participación Ciudadana", "Fuente de Datos"]
 
-# Determinar el índice por defecto basado en el estado actual
-# Esto permite que si cambiamos el estado desde un botón (ej: "Ver Plan"), el menú se actualice visualmente
+# Manejo del índice para sincronizar
 default_index = 0
 if st.session_state['page_selection'] in options:
     default_index = options.index(st.session_state['page_selection'])
 
 with st.sidebar:
+    # Callback simple para guardar la selección en el estado
+    def on_change(key):
+        st.session_state['page_selection'] = st.session_state[key]
+
     selected = option_menu(
         menu_title=None,
         options=options,
         icons=["house-door-fill", "people-fill", "file-text-fill", "bar-chart-fill", "chat-text-fill", "database-fill"],
-        default_index=default_index, 
+        default_index=default_index,
         styles={
             "container": {"padding": "0!important", "background-color": "#ffffff"},
             "icon": {"color": "#64748B", "font-size": "16px"}, 
             "nav-link": {"font-size": "14px", "text-align": "left", "margin": "0px", "padding": "10px 15px", "color": "#334155"},
             "nav-link-selected": {"background-color": "#EFF6FF", "color": "#2563EB", "font-weight": "600", "border-left": "3px solid #2563EB"}
         },
-        key='menu_selection', # Clave única para el widget
-        on_change=on_menu_change, # Callback sin lambda para evitar errores de serialización
-        args=('menu_selection',) # Pasar la clave como argumento
+        key='menu_widget', # Clave del widget
+        on_change=on_change, # Asignar función callback
+        args=('menu_widget',) # Argumentos para el callback
     )
     st.markdown("---")
     st.caption("© 2026 Monitor Electoral")
 
-# Router basado en el estado de sesión (Fuente de la verdad)
+# Router
 if st.session_state['page_selection'] == "Inicio": view_inicio()
 elif st.session_state['page_selection'] == "Candidatos": view_candidatos()
 elif st.session_state['page_selection'] == "Planes de Gobierno": view_planes()
