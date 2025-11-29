@@ -52,7 +52,9 @@ def local_css():
             width: 280px !important;
         }
         
-        [data-testid="collapsedControl"] { display: none; }
+        [data-testid="collapsedControl"] {
+            display: none;
+        }
 
         h1 { font-weight: 800; color: #0F172A; font-size: 2rem; margin-bottom: 0.5rem; }
         .intro-text { color: #64748B; font-size: 1rem; line-height: 1.6; margin-bottom: 2rem; }
@@ -119,14 +121,41 @@ def local_css():
 
 local_css()
 
-# --- 2. GESTIÓN DE DATOS (CARGA MANUAL EXACTA) ---
+# --- 2. GESTIÓN DE DATOS ---
 
-def read_csv_safe(path, **kwargs):
-    if not os.path.exists(path): return pd.DataFrame()
-    try: return pd.read_csv(path, **kwargs)
-    except: 
-        try: return pd.read_csv(path, encoding='latin-1', **kwargs)
-        except: return pd.DataFrame()
+def smart_read_csv(filepath, expected_columns=None, keyword_search=None):
+    if not os.path.exists(filepath):
+        return pd.DataFrame()
+
+    df = pd.DataFrame()
+    
+    try:
+        df = pd.read_csv(filepath, header=None, engine='python')
+    except:
+        try:
+            df = pd.read_csv(filepath, header=None, encoding='latin-1', engine='python')
+        except:
+            return pd.DataFrame()
+
+    if expected_columns:
+        if df.shape[1] >= len(expected_columns):
+            df = df.iloc[:, :len(expected_columns)]
+            df.columns = expected_columns
+            value_col = expected_columns[-1] 
+            df[value_col] = pd.to_numeric(df[value_col], errors='coerce')
+            df = df.dropna(subset=[value_col])
+            return df
+    
+    if keyword_search:
+        try:
+            for i, row in df.head(20).iterrows():
+                if row.astype(str).str.contains(keyword_search, case=False).any():
+                    try: return pd.read_csv(filepath, header=i)
+                    except: return pd.read_csv(filepath, header=i, encoding='latin-1')
+        except:
+            pass
+
+    return df
 
 @st.cache_data(ttl=3600)
 def load_data():
@@ -145,89 +174,89 @@ def load_data():
     current_dir = os.path.dirname(os.path.abspath(__file__))
     data_path = os.path.join(current_dir, 'data')
     
-    # 1. ANEMIA
-    df_anemia = read_csv_safe(os.path.join(data_path, "anemia.csv"))
-    if not df_anemia.empty and 'Anemia' in df_anemia.columns:
-         df_anemia = df_anemia.groupby('Año')[['Anemia', 'Evaluados']].sum().reset_index()
-         df_anemia['Porcentaje'] = (df_anemia['Anemia'] / df_anemia['Evaluados']) * 100
-
-    # 2. MÉDICOS (header=4)
+    # Inicializar TODOS los DataFrames
+    df_anemia = pd.DataFrame()
     df_medicos = pd.DataFrame()
-    file_medicos = os.path.join(data_path, "medicos.csv")
-    if os.path.exists(file_medicos):
-        # Cargar saltando título
-        temp = read_csv_safe(file_medicos, header=4)
-        if not temp.empty and 'Departamento' in temp.columns:
-             temp = temp[temp['Departamento'].str.contains('Total', case=False, na=False)]
-             df_medicos = temp.melt(id_vars=['Departamento'], var_name='Año', value_name='Habitantes')
-             df_medicos['Año'] = pd.to_numeric(df_medicos['Año'], errors='coerce')
-             # Limpiar espacios en miles
-             if df_medicos['Habitantes'].dtype == object:
+    df_inseguridad = pd.DataFrame()
+    df_victimizacion = pd.DataFrame()
+    df_servicios = pd.DataFrame() 
+    df_internet = pd.DataFrame()  
+    df_bosques = pd.DataFrame() 
+    df_co2 = pd.DataFrame() 
+    df_gob = pd.DataFrame()      
+    df_deuda = pd.DataFrame()
+
+    try:
+        # 1. ANEMIA
+        file_anemia = os.path.join(data_path, "anemia.csv")
+        df_anemia = smart_read_csv(file_anemia, keyword_search="Año")
+        if not df_anemia.empty and 'Anemia' in df_anemia.columns:
+             df_anemia = df_anemia.groupby('Año')[['Anemia', 'Evaluados']].sum().reset_index()
+             df_anemia['Porcentaje'] = (df_anemia['Anemia'] / df_anemia['Evaluados']) * 100
+
+        # 2. MÉDICOS
+        file_medicos = os.path.join(data_path, "medicos.csv")
+        df_medicos = smart_read_csv(file_medicos, keyword_search="Departamento")
+        if not df_medicos.empty:
+            df_medicos = df_medicos[df_medicos['Departamento'].str.contains('Total', case=False, na=False)]
+            df_medicos = df_medicos.melt(id_vars=['Departamento'], var_name='Año', value_name='Habitantes')
+            df_medicos['Año'] = pd.to_numeric(df_medicos['Año'], errors='coerce')
+            if df_medicos['Habitantes'].dtype == object:
                  df_medicos['Habitantes'] = df_medicos['Habitantes'].astype(str).str.replace(' ', '', regex=False)
-             df_medicos['Habitantes'] = pd.to_numeric(df_medicos['Habitantes'], errors='coerce')
-             df_medicos = df_medicos.dropna().sort_values('Año')
+            df_medicos['Habitantes'] = pd.to_numeric(df_medicos['Habitantes'], errors='coerce')
+            df_medicos = df_medicos.dropna(subset=['Año', 'Habitantes']).sort_values('Año')
 
-    # 3. INSEGURIDAD (header=1)
-    df_inseguridad = read_csv_safe(os.path.join(data_path, "inseguridad.csv"), header=1)
-    
-    # 4. VICTIMIZACIÓN (header=1)
-    df_victimizacion = read_csv_safe(os.path.join(data_path, "victimizacion.csv"), header=1)
+        # 3. INSEGURIDAD
+        df_inseguridad = smart_read_csv(os.path.join(data_path, "inseguridad.csv"), keyword_search="DEPARTAMENTO")
+        
+        # 4. VICTIMIZACIÓN
+        df_victimizacion = smart_read_csv(os.path.join(data_path, "victimizacion.csv"), keyword_search="AÑO")
 
-    # 5. SERVICIOS (header=0, columns [0, 2])
-    df_servicios = pd.DataFrame()
-    file_serv = os.path.join(data_path, "servicios_basicos.csv")
-    if os.path.exists(file_serv):
-        temp = read_csv_safe(file_serv, header=0)
-        if len(temp.columns) >= 3:
-            df_servicios = temp.iloc[:, [0, 2]]
-            df_servicios.columns = ['Servicio', 'Porcentaje']
+        # 5. SERVICIOS 
+        df_servicios = smart_read_csv(os.path.join(data_path, "servicios_basicos.csv"), expected_columns=['Servicio', 'Porcentaje'])
+        
+        # 6. INTERNET QUINTILES
+        file_internet = os.path.join(data_path, "internet_quintiles.csv")
+        if os.path.exists(file_internet):
+            try:
+                df_temp = pd.read_csv(file_internet, header=0)
+                df_temp.columns = df_temp.columns.str.strip()
+                if 'Quintil' in df_temp.columns:
+                    value_vars = [c for c in df_temp.columns if c != 'Quintil']
+                    df_internet = df_temp.melt(id_vars=['Quintil'], value_vars=value_vars, var_name='Área', value_name='Porcentaje')
+            except: pass
+        
+        # 7. BOSQUES
+        df_bosques = smart_read_csv(os.path.join(data_path, "bosques.csv"), expected_columns=['Año', 'Hectareas'])
+        
+        # 8. CO2
+        df_co2 = smart_read_csv(os.path.join(data_path, "emisions_co2.csv"), expected_columns=['Año', 'Megatoneladas'])
+        
+        # 9. GOBERNANZA
+        df_gob = smart_read_csv(os.path.join(data_path, "eficacia_gobierno.csv"), expected_columns=['Indicador', 'Puntaje'])
 
-    # 6. INTERNET (header=0, columns [0, 2]) -> REHECHO PARA RURAL/URBANA
-    # El archivo tiene Quintil, Rural, Urbana (o similar)
-    df_internet = pd.DataFrame()
-    file_net = os.path.join(data_path, "internet_quintiles.csv")
-    if os.path.exists(file_net):
-        temp = read_csv_safe(file_net, header=0)
-        temp.columns = temp.columns.str.strip()
-        if 'Quintil' in temp.columns:
-            # Melt para graficar
-            val_vars = [c for c in temp.columns if c != 'Quintil']
-            df_internet = temp.melt(id_vars=['Quintil'], value_vars=val_vars, var_name='Área', value_name='Porcentaje')
-
-    # 7. BOSQUES (header=1)
-    df_bosques = read_csv_safe(os.path.join(data_path, "bosques.csv"), header=1)
-    if not df_bosques.empty: df_bosques.columns = ['Año', 'Hectareas']
-
-    # 8. CO2 (header=1)
-    df_co2 = read_csv_safe(os.path.join(data_path, "emisions_co2.csv"), header=1)
-    if not df_co2.empty:
-        df_co2.columns = ['Año', 'Megatoneladas']
-        if df_co2['Megatoneladas'].dtype == object:
-            df_co2['Megatoneladas'] = df_co2['Megatoneladas'].astype(str).str.replace(',', '').astype(float)
-
-    # 9. GOBERNANZA (header=1) -> AHORA LÍNEA DE TIEMPO
-    df_gob = read_csv_safe(os.path.join(data_path, "eficacia_gobierno.csv"), header=1)
-    if not df_gob.empty: df_gob.columns = ['Año', 'Puntuación']
-
-    # 10. DEUDA (header=0)
-    df_deuda = read_csv_safe(os.path.join(data_path, "deuda_publica.csv"))
+        # 10. DEUDA PÚBLICA
+        df_deuda = smart_read_csv(os.path.join(data_path, "deuda_publica.csv"), expected_columns=['Año', 'Soles'])
+        
+    except Exception as e:
+        print(f"Error cargando CSVs: {e}")
 
     # C. MANUALES
     df_edu_analfa = pd.DataFrame({'year': np.arange(2013, 2023), 'Tasa': [6.2, 6.0, 5.9, 5.9, 5.8, 5.6, 5.5, 5.5, 5.2, 5.1]})
     df_edu_deficit = pd.DataFrame({'Año': [2016, 2018, 2020, 2022], 'Servicios': [1200, 1150, 1100, 1050]})
 
-    # D. EXTERNOS
+    # D. CANDIDATOS Y PROPUESTAS
     try: df_cand = obtener_data_candidatos()
     except: df_cand = pd.DataFrame({'Nombre': [], 'Partido': [], 'Foto': []})
+
     try: df_prop = obtener_data_propuestas()
     except: df_prop = pd.DataFrame(columns=['Candidato', 'Eje', 'Subtema', 'Texto', 'Tipo'])
 
     return df_cand, df_prop, wb_data, df_anemia, df_medicos, df_inseguridad, df_victimizacion, df_edu_analfa, df_edu_deficit, df_servicios, df_internet, df_bosques, df_co2, df_gob, df_deuda, status
 
-# Cargar datos
 df_cand, df_prop, df_wb, df_anemia, df_medicos, df_inseguridad, df_victimizacion, df_edu_analfa, df_edu_deficit, df_servicios, df_internet, df_bosques, df_co2, df_gob, df_deuda, status_msg = load_data()
 
-# --- 3. COMPONENTES VISUALES ---
+# --- 3. HELPERS ---
 
 def kpi_box(label, value, subtitle=None):
     sub = f'<div class="kpi-subtitle">{subtitle}</div>' if subtitle else ''
@@ -261,18 +290,11 @@ def render_proposal_card(subtema, tipo, texto):
     </div>
     """, unsafe_allow_html=True)
 
-# HELPER: GRÁFICO CON ZOOM INTELIGENTE (CORREGIDO)
+# HELPER: GRÁFICO CON ZOOM INTELIGENTE (5 AÑOS)
 def plot_zoom_chart(df, x_col, y_col, color, chart_type='line'):
     if df.empty: return None
     
-    # Copiar para no afectar original
-    df = df.copy()
-    # Forzar numérico para evitar error 'str' - 'int'
-    df[x_col] = pd.to_numeric(df[x_col], errors='coerce')
-    df = df.dropna(subset=[x_col])
-    
-    if df.empty: return None
-    
+    # Calcular rango inicial: Último año - 5
     max_x = df[x_col].max()
     min_x = max_x - 5
     
@@ -285,9 +307,9 @@ def plot_zoom_chart(df, x_col, y_col, color, chart_type='line'):
         
     fig.update_layout(
         xaxis=dict(
-            rangeslider=dict(visible=True), 
-            type="linear", 
-            range=[min_x, max_x + 0.5]
+            rangeslider=dict(visible=True), # Barra inferior visible
+            type="linear",
+            range=[min_x, max_x + 0.5] # Zoom inicial por defecto
         ),
         margin=dict(l=0, r=0, t=0, b=0)
     )
@@ -298,7 +320,13 @@ def plot_zoom_chart(df, x_col, y_col, color, chart_type='line'):
 def view_inicio():
     st.markdown("# Monitor Electoral Perú 2026")
     st.markdown("<div style='color:#64748B; margin-top:-10px; margin-bottom:20px;'>Tu plataforma para un voto informado.</div>", unsafe_allow_html=True)
-    st.markdown("<div class='intro-text'>Bienvenido a Monitor Electoral Perú 2026.</div>", unsafe_allow_html=True)
+    
+    st.markdown("""
+    <div class="intro-text">
+    Bienvenido a Monitor Electoral Perú 2026. Nuestra misión es centralizar y simplificar el acceso a la información electoral, 
+    promoviendo la transparencia y la participación ciudadana informada para las próximas elecciones.
+    </div>
+    """, unsafe_allow_html=True)
 
     today = datetime.date.today()
     days_left = (datetime.date(2026, 4, 12) - today).days
@@ -330,9 +358,11 @@ def view_inicio():
 def view_candidatos():
     render_section_header("Candidatos", "Directorio completo de aspirantes a la presidencia.")
     
+    # Navegación manual
     def go_to_plan(name):
         st.session_state['page_selection'] = 'Planes de Gobierno'
         st.session_state['selected_candidate'] = name
+        # Forzar recarga para aplicar cambio
         st.rerun()
 
     cols = st.columns(3)
@@ -346,15 +376,19 @@ def view_candidatos():
                 <div style="font-size:0.8rem; color:#2563EB; margin-bottom:10px;">{row.get('Estado', '')}</div>
             </div>
             """, unsafe_allow_html=True)
+            
+            # Botón simple que llama a la función
             if st.button(f"Ver Plan de Gobierno", key=f"btn_{idx}"):
                 go_to_plan(row['Nombre'])
 
 def view_planes():
     render_section_header("Planes de Gobierno", "Comparador inteligente de propuestas electorales.")
     
+    # Preselección automática
     idx_a = 0
     if 'selected_candidate' in st.session_state and st.session_state['selected_candidate'] in df_prop['Candidato'].unique():
-        try: idx_a = list(df_prop['Candidato'].unique()).index(st.session_state['selected_candidate'])
+        try:
+            idx_a = list(df_prop['Candidato'].unique()).index(st.session_state['selected_candidate'])
         except: pass
 
     with st.container():
@@ -366,13 +400,16 @@ def view_planes():
         st.markdown('</div>', unsafe_allow_html=True)
     
     col_a, col_b = st.columns(2)
+    
     def show_p(cand, col):
         with col:
             st.markdown(f"### {cand}")
             props = df_prop[(df_prop['Candidato'] == cand) & (df_prop['Eje'] == eje)]
             if not props.empty:
-                for _, row in props.iterrows(): render_proposal_card(row['Subtema'], row['Tipo'], row['Texto'])
+                for _, row in props.iterrows():
+                    render_proposal_card(row['Subtema'], row['Tipo'], row['Texto'])
             else: st.info("Información en proceso.")
+
     show_p(cand_a, col_a)
     show_p(cand_b, col_b)
 
@@ -394,18 +431,21 @@ def view_indicadores():
             st.markdown('</div>', unsafe_allow_html=True)
         with c2:
             st.markdown('<div class="radio-card"><div class="radio-title">Desempleo Total (% fuerza laboral)</div>', unsafe_allow_html=True)
-            if not df_wb.empty: st.plotly_chart(plot_zoom_chart(df_wb, 'year', 'Desempleo', '#3B82F6', 'bar'), use_container_width=True)
+            if not df_wb.empty: 
+                st.plotly_chart(plot_zoom_chart(df_wb, 'year', 'Desempleo', '#3B82F6', 'bar'), use_container_width=True)
             st.markdown('</div>', unsafe_allow_html=True)
 
     with tabs[1]: # Social
         c1, c2 = st.columns(2)
         with c1:
             st.markdown('<div class="radio-card"><div class="radio-title">Pobreza Monetaria (%)</div>', unsafe_allow_html=True)
-            if not df_wb.empty and 'Pobreza' in df_wb.columns: st.plotly_chart(plot_zoom_chart(df_wb.dropna(subset=['Pobreza']), 'year', 'Pobreza', '#EF4444', 'line'), use_container_width=True)
+            if not df_wb.empty and 'Pobreza' in df_wb.columns: 
+                st.plotly_chart(plot_zoom_chart(df_wb.dropna(subset=['Pobreza']), 'year', 'Pobreza', '#EF4444', 'line'), use_container_width=True)
             st.markdown('</div>', unsafe_allow_html=True)
         with c2:
             st.markdown('<div class="radio-card"><div class="radio-title">Desigualdad (Gini)</div>', unsafe_allow_html=True)
-            if not df_wb.empty and 'Gini' in df_wb.columns: st.plotly_chart(plot_zoom_chart(df_wb.dropna(subset=['Gini']), 'year', 'Gini', '#8B5CF6', 'line'), use_container_width=True)
+            if not df_wb.empty and 'Gini' in df_wb.columns: 
+                st.plotly_chart(plot_zoom_chart(df_wb.dropna(subset=['Gini']), 'year', 'Gini', '#8B5CF6', 'line'), use_container_width=True)
             st.markdown('</div>', unsafe_allow_html=True)
 
     with tabs[2]: # Educación
@@ -442,7 +482,8 @@ def view_indicadores():
             st.markdown('</div>', unsafe_allow_html=True)
         with c2:
             st.markdown('<div class="radio-card"><div class="radio-title">Victimización Nacional</div>', unsafe_allow_html=True)
-            if not df_victimizacion.empty: st.plotly_chart(plot_zoom_chart(df_victimizacion, 'AÑO', 'VALOR', '#9F1239', 'line'), use_container_width=True)
+            if not df_victimizacion.empty: 
+                st.plotly_chart(plot_zoom_chart(df_victimizacion, 'AÑO', 'VALOR', '#9F1239', 'line'), use_container_width=True)
             else: st.info("Datos de victimización no disponibles.")
             st.markdown('</div>', unsafe_allow_html=True)
 
@@ -482,7 +523,11 @@ def view_indicadores():
         with c1:
             st.markdown('<div class="radio-card"><div class="radio-title">Indicadores de Gobernanza (0-100)</div>', unsafe_allow_html=True)
             if not df_gob.empty: 
-                st.plotly_chart(plot_zoom_chart(df_gob, 'Año', 'Puntuación', '#7C3AED', 'line'), use_container_width=True)
+                fig_gob = px.bar(df_gob, x='Puntaje', y='Indicador', orientation='h', template='plotly_white')
+                fig_gob.update_traces(marker_color='#7C3AED')
+                fig_gob.update_xaxes(range=[0, 25])
+                fig_gob.update_layout(height=250)
+                st.plotly_chart(fig_gob, use_container_width=True)
             else: st.info("Datos de gobernanza no disponibles.")
             st.markdown('</div>', unsafe_allow_html=True)
         with c2:
@@ -498,38 +543,39 @@ def view_participacion():
 def view_fuente():
     st.json({"Fuente": "Banco Mundial + JNE + INEI + CEPAL + GFW"})
 
-# --- 5. NAVEGACIÓN (CORREGIDA) ---
+# --- 5. NAVEGACIÓN CON ESTADO ---
 st.sidebar.markdown("""<div class="sidebar-header"><div class="sidebar-logo">ME</div><div><div class="sidebar-main-title">Monitor Electoral</div><div class="sidebar-subtitle">Perú 2026</div></div></div>""", unsafe_allow_html=True)
 
+# Inicializar estado
 if 'page_selection' not in st.session_state:
     st.session_state['page_selection'] = 'Inicio'
 
-def on_change(key):
-    st.session_state['page_selection'] = st.session_state[key]
-
+# Sincronizar índice del menú con el estado
 opts = ["Inicio", "Candidatos", "Planes de Gobierno", "Indicadores Nacionales", "Participación Ciudadana", "Fuente de Datos"]
-default_index = opts.index(st.session_state['page_selection']) if st.session_state['page_selection'] in opts else 0
+default_idx = opts.index(st.session_state['page_selection']) if st.session_state['page_selection'] in opts else 0
 
 with st.sidebar:
     selected = option_menu(
         menu_title=None,
         options=opts,
         icons=["house-door-fill", "people-fill", "file-text-fill", "bar-chart-fill", "chat-text-fill", "database-fill"],
-        default_index=default_index,
+        default_index=default_idx,
         styles={
             "container": {"padding": "0!important", "background-color": "#ffffff"},
             "icon": {"color": "#64748B", "font-size": "16px"}, 
             "nav-link": {"font-size": "14px", "text-align": "left", "margin": "0px", "padding": "10px 15px", "color": "#334155"},
             "nav-link-selected": {"background-color": "#EFF6FF", "color": "#2563EB", "font-weight": "600", "border-left": "3px solid #2563EB"}
-        },
-        key='menu_widget',
-        on_change=on_change,
-        args=('menu_widget',) # Argumento necesario para el callback
+        }
     )
     st.markdown("---")
     st.caption("© 2026 Monitor Electoral")
+    
+    # Actualizar estado si el usuario cambia manualmente el menú
+    if selected != st.session_state['page_selection']:
+        st.session_state['page_selection'] = selected
+        st.rerun()
 
-# Router
+# Enrutador
 if st.session_state['page_selection'] == "Inicio": view_inicio()
 elif st.session_state['page_selection'] == "Candidatos": view_candidatos()
 elif st.session_state['page_selection'] == "Planes de Gobierno": view_planes()
