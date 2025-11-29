@@ -5,7 +5,7 @@ from pandas_datareader import wb
 import datetime
 import numpy as np
 import os
-import streamlit.components.v1 as components # Para el Chatbot
+import streamlit.components.v1 as components # Necesario para el chatbot
 from streamlit_option_menu import option_menu
 
 # IMPORTAR DATOS EXTERNOS
@@ -22,14 +22,11 @@ except ImportError:
         return pd.DataFrame(columns=['Candidato', 'Eje', 'Subtema', 'Texto', 'Tipo'])
 
 # --- 1. CONFIGURACIÓN TÉCNICA ---
-# Logo del JNE para favicon
-JNE_LOGO_URL = "https://portal.jne.gob.pe/portal/resources/images/logo-jne.png"
-
 st.set_page_config(
     layout="wide", 
     page_title="Monitor Electoral Perú 2026",
     initial_sidebar_state="expanded",
-    page_icon=JNE_LOGO_URL
+    page_icon="🇵🇪"
 )
 
 # --- CSS PERSONALIZADO ---
@@ -48,13 +45,14 @@ def local_css():
         footer {visibility: hidden;}
         header {visibility: hidden;}
         
-        /* SIDEBAR FIJO */
+        /* SIDEBAR FIJO Y VISIBLE */
         section[data-testid="stSidebar"] {
             background-color: #FFFFFF;
             border-right: 1px solid #E2E8F0;
             min-width: 280px !important;
             width: 280px !important;
         }
+        
         [data-testid="collapsedControl"] { display: none; }
 
         h1 { font-weight: 800; color: #0F172A; font-size: 2rem; margin-bottom: 0.5rem; }
@@ -85,12 +83,21 @@ def local_css():
         }
         .cand-grid-card:hover { transform: translateY(-3px); border-color: #3B82F6; }
         
+        /* BOTONES VER PLAN */
         div[data-testid="stVerticalBlock"] > div > button {
-            width: 100%; background-color: #EFF6FF; color: #2563EB; border: none;
-            border-radius: 8px; font-weight: 600; padding: 0.5rem; margin-top: 10px;
+            width: 100%;
+            background-color: #EFF6FF;
+            color: #2563EB;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            padding: 0.5rem;
+            margin-top: 10px;
             transition: background-color 0.2s;
         }
-        div[data-testid="stVerticalBlock"] > div > button:hover { background-color: #DBEAFE; }
+        div[data-testid="stVerticalBlock"] > div > button:hover {
+            background-color: #DBEAFE;
+        }
 
         .prop-card { background-color: #FFFFFF; padding: 20px; border-radius: 12px; border: 1px solid #F1F5F9; box-shadow: 0 2px 4px rgba(0,0,0,0.02); height: 100%; }
         .prop-badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; margin-bottom: 10px; background-color: #F1F5F9; color: #475569; }
@@ -105,7 +112,7 @@ def local_css():
         .bottom-desc { font-size: 0.85rem; color: #64748B; }
 
         .sidebar-header { padding: 20px 10px 30px 10px; display: flex; align-items: center; }
-        .sidebar-logo { width: 50px; height: 50px; object-fit: contain; margin-right: 12px; }
+        .sidebar-logo { width: 40px; height: 40px; background: #0F172A; border-radius: 50%; color: white; display: flex; justify-content: center; align-items: center; font-weight: bold; margin-right: 12px; }
         .sidebar-main-title { font-weight: 700; color: #0F172A; font-size: 15px; }
         .sidebar-subtitle { font-size: 12px; color: #64748B; }
     </style>
@@ -113,24 +120,27 @@ def local_css():
 
 local_css()
 
-# --- 2. GESTIÓN DE DATOS INTELIGENTE ---
+# --- 2. GESTIÓN DE DATOS ---
 
 def smart_read_csv(filepath, expected_columns=None, keyword_search=None):
-    if not os.path.exists(filepath): return pd.DataFrame()
+    if not os.path.exists(filepath):
+        return pd.DataFrame()
+
     df = pd.DataFrame()
-    try: df = pd.read_csv(filepath, header=None, engine='python')
-    except: 
-        try: df = pd.read_csv(filepath, header=None, encoding='latin-1', engine='python')
-        except: return pd.DataFrame()
+    
+    try:
+        df = pd.read_csv(filepath, header=None, engine='python')
+    except:
+        try:
+            df = pd.read_csv(filepath, header=None, encoding='latin-1', engine='python')
+        except:
+            return pd.DataFrame()
 
     if expected_columns:
         if df.shape[1] >= len(expected_columns):
             df = df.iloc[:, :len(expected_columns)]
             df.columns = expected_columns
             value_col = expected_columns[-1]
-            # Limpieza de números con comas o espacios
-            if df[value_col].dtype == object:
-                df[value_col] = df[value_col].astype(str).str.replace(',', '').str.replace(' ', '')
             df[value_col] = pd.to_numeric(df[value_col], errors='coerce')
             df = df.dropna(subset=[value_col])
             return df
@@ -141,7 +151,9 @@ def smart_read_csv(filepath, expected_columns=None, keyword_search=None):
                 if row.astype(str).str.contains(keyword_search, case=False).any():
                     try: return pd.read_csv(filepath, header=i)
                     except: return pd.read_csv(filepath, header=i, encoding='latin-1')
-        except: pass
+        except:
+            pass
+
     return df
 
 @st.cache_data(ttl=3600)
@@ -161,79 +173,109 @@ def load_data():
     current_dir = os.path.dirname(os.path.abspath(__file__))
     data_path = os.path.join(current_dir, 'data')
     
-    df_anemia = smart_read_csv(os.path.join(data_path, "anemia.csv"), keyword_search="Año")
-    if not df_anemia.empty and 'Anemia' in df_anemia.columns:
-         df_anemia = df_anemia.groupby('Año')[['Anemia', 'Evaluados']].sum().reset_index()
-         df_anemia['Porcentaje'] = (df_anemia['Anemia'] / df_anemia['Evaluados']) * 100
+    # Inicialización
+    df_anemia = pd.DataFrame()
+    df_medicos = pd.DataFrame()
+    df_inseguridad = pd.DataFrame()
+    df_victimizacion = pd.DataFrame()
+    df_servicios = pd.DataFrame() 
+    df_internet = pd.DataFrame()  
+    df_bosques = pd.DataFrame() 
+    df_co2 = pd.DataFrame() 
+    df_gob = pd.DataFrame()      
+    df_deuda = pd.DataFrame()
 
-    df_medicos = smart_read_csv(os.path.join(data_path, "medicos.csv"), keyword_search="Departamento")
-    if not df_medicos.empty:
-        df_medicos = df_medicos[df_medicos['Departamento'].str.contains('Total', case=False, na=False)]
-        df_medicos = df_medicos.melt(id_vars=['Departamento'], var_name='Año', value_name='Habitantes')
-        df_medicos['Año'] = pd.to_numeric(df_medicos['Año'], errors='coerce')
-        if df_medicos['Habitantes'].dtype == object:
-             df_medicos['Habitantes'] = df_medicos['Habitantes'].astype(str).str.replace(' ', '', regex=False)
-        df_medicos['Habitantes'] = pd.to_numeric(df_medicos['Habitantes'], errors='coerce')
-        df_medicos = df_medicos.dropna(subset=['Año', 'Habitantes']).sort_values('Año')
+    try:
+        # 1. ANEMIA
+        file_anemia = os.path.join(data_path, "anemia.csv")
+        df_anemia = smart_read_csv(file_anemia, keyword_search="Año")
+        if not df_anemia.empty and 'Anemia' in df_anemia.columns:
+             df_anemia = df_anemia.groupby('Año')[['Anemia', 'Evaluados']].sum().reset_index()
+             df_anemia['Porcentaje'] = (df_anemia['Anemia'] / df_anemia['Evaluados']) * 100
 
-    df_inseguridad = smart_read_csv(os.path.join(data_path, "inseguridad.csv"), keyword_search="DEPARTAMENTO")
-    df_victimizacion = smart_read_csv(os.path.join(data_path, "victimizacion.csv"), keyword_search="AÑO")
-    
-    # 5. SERVICIOS (Lectura corregida para incluir Área)
-    # Se lee como dataframe normal primero para detectar columnas
-    file_serv = os.path.join(data_path, "servicios_basicos.csv")
-    df_servicios = pd.DataFrame()
-    if os.path.exists(file_serv):
-        try:
-            temp = pd.read_csv(file_serv) # Header automático
-            if 'Servicios básicos_(EH)' in temp.columns:
-                # Renombrar
-                temp = temp.rename(columns={'Servicios básicos_(EH)': 'Servicio', 'Área geográfica': 'Area', 'value': 'Porcentaje'})
-                df_servicios = temp
-        except: pass
+        # 2. MÉDICOS
+        file_medicos = os.path.join(data_path, "medicos.csv")
+        if os.path.exists(file_medicos):
+            # Lectura manual robusta para header saltado
+            try: 
+                # Intentar varios headers típicos
+                temp = pd.read_csv(file_medicos, header=4) # El formato usual de tus excel
+                if 'Departamento' not in temp.columns:
+                     temp = pd.read_csv(file_medicos, header=0) # Si está limpio
 
-    df_internet = pd.DataFrame()
-    path_internet = os.path.join(data_path, "internet_quintiles.csv")
-    if os.path.exists(path_internet):
-        try:
-            df_t = pd.read_csv(path_internet, header=0)
-            df_t.columns = df_t.columns.str.strip()
-            if 'Quintil' in df_t.columns:
-                val_vars = [c for c in df_t.columns if c != 'Quintil']
-                df_internet = df_t.melt(id_vars=['Quintil'], value_vars=val_vars, var_name='Área', value_name='Porcentaje')
-        except: pass
+                if 'Departamento' in temp.columns:
+                    temp = temp[temp['Departamento'].str.contains('Total', case=False, na=False)]
+                    if not temp.empty:
+                        df_medicos = temp.melt(id_vars=['Departamento'], var_name='Año', value_name='Habitantes')
+                        df_medicos['Año'] = pd.to_numeric(df_medicos['Año'], errors='coerce')
+                        if df_medicos['Habitantes'].dtype == object:
+                            df_medicos['Habitantes'] = df_medicos['Habitantes'].astype(str).str.replace(' ', '', regex=False)
+                        df_medicos['Habitantes'] = pd.to_numeric(df_medicos['Habitantes'], errors='coerce')
+                        df_medicos = df_medicos.dropna(subset=['Año', 'Habitantes']).sort_values('Año')
+            except: pass
 
-    df_bosques = smart_read_csv(os.path.join(data_path, "bosques.csv"), expected_columns=['Año', 'Hectareas'])
-    
-    # 8. CO2 (Limpieza de comas en miles)
-    file_co2 = os.path.join(data_path, "emisions_co2.csv")
-    df_co2 = pd.DataFrame()
-    if os.path.exists(file_co2):
-        try:
-            # header=1 para saltar el título
-            temp = pd.read_csv(file_co2, header=1)
-            if len(temp.columns) >= 2:
-                temp = temp.iloc[:, :2]
-                temp.columns = ['Año', 'Megatoneladas']
-                if temp['Megatoneladas'].dtype == object:
-                    temp['Megatoneladas'] = temp['Megatoneladas'].astype(str).str.replace(',', '').astype(float)
-                df_co2 = temp
-        except: pass
+        # 3. INSEGURIDAD
+        df_inseguridad = smart_read_csv(os.path.join(data_path, "inseguridad.csv"), keyword_search="DEPARTAMENTO")
+        
+        # 4. VICTIMIZACIÓN
+        df_victimizacion = smart_read_csv(os.path.join(data_path, "victimizacion.csv"), keyword_search="AÑO")
 
-    # 9. GOBERNANZA (Timeline)
-    file_gob = os.path.join(data_path, "eficacia_gobierno.csv")
-    df_gob = pd.DataFrame()
-    if os.path.exists(file_gob):
-        try:
-            # header=1 para saltar el título
-            temp = pd.read_csv(file_gob, header=1)
-            if len(temp.columns) >= 2:
-                temp = temp.iloc[:, :2]
-                temp.columns = ['Año', 'Puntuación']
-                df_gob = temp
-        except: pass
+        # 5. SERVICIOS (Fix para archivo con 3 columnas: Servicio, Area, Value)
+        file_serv = os.path.join(data_path, "servicios_basicos.csv")
+        if os.path.exists(file_serv):
+            try:
+                temp = pd.read_csv(file_serv, header=0)
+                # Renombrar si es necesario para estandarizar
+                if len(temp.columns) >= 3:
+                    df_servicios = temp.iloc[:, [0, 2]] # Tomar col 0 y 2 (Servicio y Valor)
+                    df_servicios.columns = ['Servicio', 'Porcentaje']
+                    df_servicios['Porcentaje'] = pd.to_numeric(df_servicios['Porcentaje'], errors='coerce')
+            except: pass
+        
+        # 6. INTERNET QUINTILES
+        file_internet = os.path.join(data_path, "internet_quintiles.csv")
+        if os.path.exists(file_internet):
+            try:
+                df_temp = pd.read_csv(file_internet, header=0)
+                df_temp.columns = df_temp.columns.str.strip()
+                if 'Quintil' in df_temp.columns:
+                    # Excluir columna Quintil para el melt
+                    val_vars = [c for c in df_temp.columns if c != 'Quintil']
+                    df_internet = df_temp.melt(id_vars=['Quintil'], value_vars=val_vars, var_name='Área', value_name='Porcentaje')
+            except: pass
+        
+        # 7. BOSQUES
+        df_bosques = smart_read_csv(os.path.join(data_path, "bosques.csv"), expected_columns=['Año', 'Hectareas'])
+        
+        # 8. CO2 (Fix para valores con comas "58,403")
+        file_co2 = os.path.join(data_path, "emisions_co2.csv")
+        if os.path.exists(file_co2):
+            try:
+                # Probar header 1
+                temp = pd.read_csv(file_co2, header=1)
+                if len(temp.columns) >= 2:
+                    df_co2 = temp.iloc[:, :2]
+                    df_co2.columns = ['Año', 'Megatoneladas']
+                    # Limpiar comas
+                    if df_co2['Megatoneladas'].dtype == object:
+                        df_co2['Megatoneladas'] = df_co2['Megatoneladas'].astype(str).str.replace(',', '').astype(float)
+            except: pass
+        
+        # 9. GOBERNANZA (Fix para serie temporal)
+        file_gob = os.path.join(data_path, "eficacia_gobierno.csv")
+        if os.path.exists(file_gob):
+            try:
+                temp = pd.read_csv(file_gob, header=1)
+                if len(temp.columns) >= 2:
+                    df_gob = temp.iloc[:, :2]
+                    df_gob.columns = ['Año', 'Puntuación']
+            except: pass
 
-    df_deuda = smart_read_csv(os.path.join(data_path, "deuda_publica.csv"), expected_columns=['Año', 'Soles'])
+        # 10. DEUDA PÚBLICA
+        df_deuda = smart_read_csv(os.path.join(data_path, "deuda_publica.csv"), expected_columns=['Año', 'Soles'])
+        
+    except Exception as e:
+        print(f"Error cargando CSVs: {e}")
 
     # C. MANUALES
     df_edu_analfa = pd.DataFrame({'year': np.arange(2013, 2023), 'Tasa': [6.2, 6.0, 5.9, 5.9, 5.8, 5.6, 5.5, 5.5, 5.2, 5.1]})
@@ -284,11 +326,11 @@ def render_proposal_card(subtema, tipo, texto):
     </div>
     """, unsafe_allow_html=True)
 
-# HELPER: GRÁFICO CON ZOOM INTELIGENTE (CORREGIDO)
+# HELPER: GRÁFICO CON ZOOM INTELIGENTE
 def plot_zoom_chart(df, x_col, y_col, color, chart_type='line'):
     if df.empty: return None
     
-    # CORRECCIÓN ERROR 'str' - 'int': Convertir a numérico antes de calcular
+    # Conversión explícita a numérico para evitar errores de resta
     df[x_col] = pd.to_numeric(df[x_col], errors='coerce')
     df = df.dropna(subset=[x_col])
     
@@ -486,10 +528,7 @@ def view_indicadores():
         c1, c2 = st.columns(2)
         with c1:
             st.markdown('<div class="radio-card"><div class="radio-title">Servicios Básicos (Vivienda)</div>', unsafe_allow_html=True)
-            if not df_servicios.empty: 
-                # Gráfico de barras agrupadas para servicios (Rural vs Urbana)
-                fig_serv = px.bar(df_servicios, x='Porcentaje', y='Servicio', color='Area', barmode='group', orientation='h', template='plotly_white')
-                st.plotly_chart(fig_serv, use_container_width=True)
+            if not df_servicios.empty: st.plotly_chart(px.bar(df_servicios, x='Porcentaje', y='Servicio', orientation='h', template='plotly_white').update_traces(marker_color='#0EA5E9'), use_container_width=True)
             else: st.info("Datos de servicios no disponibles.")
             st.markdown('</div>', unsafe_allow_html=True)
         with c2:
@@ -521,17 +560,13 @@ def view_indicadores():
         with c1:
             st.markdown('<div class="radio-card"><div class="radio-title">Indicadores de Gobernanza (0-100)</div>', unsafe_allow_html=True)
             if not df_gob.empty: 
-                fig_gob = px.bar(df_gob, x='Puntaje', y='Indicador', orientation='h', template='plotly_white')
-                fig_gob.update_traces(marker_color='#7C3AED')
-                fig_gob.update_xaxes(range=[0, 25])
-                fig_gob.update_layout(height=250)
-                st.plotly_chart(fig_gob, use_container_width=True)
+                st.plotly_chart(plot_zoom_chart(df_gob, 'Año', 'Puntuación', '#7C3AED', 'line'), use_container_width=True)
             else: st.info("Datos de gobernanza no disponibles.")
             st.markdown('</div>', unsafe_allow_html=True)
         with c2:
             st.markdown('<div class="radio-card"><div class="radio-title">Deuda Pública</div>', unsafe_allow_html=True)
             if not df_deuda.empty: st.plotly_chart(plot_zoom_chart(df_deuda, 'Año', 'Soles', '#F59E0B', 'line'), use_container_width=True)
-            else: st.info("Sube 'deuda_publica.csv' a data/")
+            else: st.info("Datos de deuda no disponibles.")
             st.markdown('</div>', unsafe_allow_html=True)
 
 def view_participacion():
@@ -566,7 +601,7 @@ def view_fuente():
     """, unsafe_allow_html=True)
 
 # --- 5. NAVEGACIÓN ---
-st.sidebar.markdown("""<div class="sidebar-header"><img src="https://portal.jne.gob.pe/portal/resources/images/logo-jne.png" class="sidebar-logo"><div><div class="sidebar-main-title">Monitor Electoral</div><div class="sidebar-subtitle">Perú 2026</div></div></div>""", unsafe_allow_html=True)
+st.sidebar.markdown("""<div class="sidebar-header"><div class="sidebar-logo">ME</div><div><div class="sidebar-main-title">Monitor Electoral</div><div class="sidebar-subtitle">Perú 2026</div></div></div>""", unsafe_allow_html=True)
 
 # Lógica de Navegación
 if 'page_selection' not in st.session_state:
@@ -612,16 +647,8 @@ components.html("""
 <script src="https://www.gstatic.com/dialogflow-console/fast/messenger/bootstrap.js?v=1"></script>
 <df-messenger
   intent="WELCOME"
-  chat-title="Asistente_Informado_🤖"
+  chat-title="Asistente Informado 🤖"
   agent-id="0dc0a346-2828-4cb8-a95e-14c5ba301baa"
   language-code="es"
 ></df-messenger>
-<style>
-  df-messenger {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    z-index: 9999;
-  }
-</style>
 """, height=600)
