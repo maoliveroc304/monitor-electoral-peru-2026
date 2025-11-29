@@ -52,7 +52,6 @@ def local_css():
             width: 280px !important;
         }
         
-        /* Ocultar botón de colapsar */
         [data-testid="collapsedControl"] {
             display: none;
         }
@@ -125,12 +124,18 @@ local_css()
 # --- 2. GESTIÓN DE DATOS ---
 
 def smart_read_csv(filepath, expected_columns=None, keyword_search=None):
-    if not os.path.exists(filepath): return pd.DataFrame()
+    if not os.path.exists(filepath):
+        return pd.DataFrame()
+
     df = pd.DataFrame()
-    try: df = pd.read_csv(filepath, header=None, engine='python')
-    except: 
-        try: df = pd.read_csv(filepath, header=None, encoding='latin-1', engine='python')
-        except: return pd.DataFrame()
+    
+    try:
+        df = pd.read_csv(filepath, header=None, engine='python')
+    except:
+        try:
+            df = pd.read_csv(filepath, header=None, encoding='latin-1', engine='python')
+        except:
+            return pd.DataFrame()
 
     if expected_columns:
         if df.shape[1] >= len(expected_columns):
@@ -169,15 +174,16 @@ def load_data():
     current_dir = os.path.dirname(os.path.abspath(__file__))
     data_path = os.path.join(current_dir, 'data')
     
+    # Inicializar TODOS los DataFrames
     df_anemia = pd.DataFrame()
     df_medicos = pd.DataFrame()
     df_inseguridad = pd.DataFrame()
     df_victimizacion = pd.DataFrame()
-    df_servicios = pd.DataFrame()
-    df_internet = pd.DataFrame()
-    df_bosques = pd.DataFrame()
-    df_co2 = pd.DataFrame()
-    df_gob = pd.DataFrame()
+    df_servicios = pd.DataFrame() 
+    df_internet = pd.DataFrame()  
+    df_bosques = pd.DataFrame() 
+    df_co2 = pd.DataFrame() 
+    df_gob = pd.DataFrame()      
     df_deuda = pd.DataFrame()
 
     try:
@@ -284,13 +290,11 @@ def render_proposal_card(subtema, tipo, texto):
     </div>
     """, unsafe_allow_html=True)
 
+# HELPER: GRÁFICO CON ZOOM INTELIGENTE (5 AÑOS)
 def plot_zoom_chart(df, x_col, y_col, color, chart_type='line'):
     if df.empty: return None
     
-    # Convertir a numérico
-    df[x_col] = pd.to_numeric(df[x_col], errors='coerce')
-    df = df.dropna(subset=[x_col])
-    
+    # Calcular rango inicial: Último año - 5
     max_x = df[x_col].max()
     min_x = max_x - 5
     
@@ -303,9 +307,9 @@ def plot_zoom_chart(df, x_col, y_col, color, chart_type='line'):
         
     fig.update_layout(
         xaxis=dict(
-            rangeslider=dict(visible=True),
+            rangeslider=dict(visible=True), # Barra inferior visible
             type="linear",
-            range=[min_x, max_x + 0.5]
+            range=[min_x, max_x + 0.5] # Zoom inicial por defecto
         ),
         margin=dict(l=0, r=0, t=0, b=0)
     )
@@ -354,10 +358,11 @@ def view_inicio():
 def view_candidatos():
     render_section_header("Candidatos", "Directorio completo de aspirantes a la presidencia.")
     
-    # Navegación con botones
+    # Navegación manual
     def go_to_plan(name):
         st.session_state['page_selection'] = 'Planes de Gobierno'
         st.session_state['selected_candidate'] = name
+        # Forzar recarga para aplicar cambio
         st.rerun()
 
     cols = st.columns(3)
@@ -372,6 +377,7 @@ def view_candidatos():
             </div>
             """, unsafe_allow_html=True)
             
+            # Botón simple que llama a la función
             if st.button(f"Ver Plan de Gobierno", key=f"btn_{idx}"):
                 go_to_plan(row['Nombre'])
 
@@ -537,43 +543,39 @@ def view_participacion():
 def view_fuente():
     st.json({"Fuente": "Banco Mundial + JNE + INEI + CEPAL + GFW"})
 
-# --- 5. NAVEGACIÓN (ESTADO) ---
+# --- 5. NAVEGACIÓN CON ESTADO ---
 st.sidebar.markdown("""<div class="sidebar-header"><div class="sidebar-logo">ME</div><div><div class="sidebar-main-title">Monitor Electoral</div><div class="sidebar-subtitle">Perú 2026</div></div></div>""", unsafe_allow_html=True)
 
+# Inicializar estado
 if 'page_selection' not in st.session_state:
     st.session_state['page_selection'] = 'Inicio'
 
-options = ["Inicio", "Candidatos", "Planes de Gobierno", "Indicadores Nacionales", "Participación Ciudadana", "Fuente de Datos"]
-
-# Manejo del índice para sincronizar
-default_index = 0
-if st.session_state['page_selection'] in options:
-    default_index = options.index(st.session_state['page_selection'])
+# Sincronizar índice del menú con el estado
+opts = ["Inicio", "Candidatos", "Planes de Gobierno", "Indicadores Nacionales", "Participación Ciudadana", "Fuente de Datos"]
+default_idx = opts.index(st.session_state['page_selection']) if st.session_state['page_selection'] in opts else 0
 
 with st.sidebar:
-    # Callback simple para guardar la selección en el estado
-    def on_change(key):
-        st.session_state['page_selection'] = st.session_state[key]
-
     selected = option_menu(
         menu_title=None,
-        options=options,
+        options=opts,
         icons=["house-door-fill", "people-fill", "file-text-fill", "bar-chart-fill", "chat-text-fill", "database-fill"],
-        default_index=default_index,
+        default_index=default_idx,
         styles={
             "container": {"padding": "0!important", "background-color": "#ffffff"},
             "icon": {"color": "#64748B", "font-size": "16px"}, 
             "nav-link": {"font-size": "14px", "text-align": "left", "margin": "0px", "padding": "10px 15px", "color": "#334155"},
             "nav-link-selected": {"background-color": "#EFF6FF", "color": "#2563EB", "font-weight": "600", "border-left": "3px solid #2563EB"}
-        },
-        key='menu_widget', # Clave del widget
-        on_change=on_change, # Asignar función callback
-        args=('menu_widget',) # Argumentos para el callback
+        }
     )
     st.markdown("---")
     st.caption("© 2026 Monitor Electoral")
+    
+    # Actualizar estado si el usuario cambia manualmente el menú
+    if selected != st.session_state['page_selection']:
+        st.session_state['page_selection'] = selected
+        st.rerun()
 
-# Router
+# Enrutador
 if st.session_state['page_selection'] == "Inicio": view_inicio()
 elif st.session_state['page_selection'] == "Candidatos": view_candidatos()
 elif st.session_state['page_selection'] == "Planes de Gobierno": view_planes()
