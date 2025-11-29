@@ -601,7 +601,18 @@ def view_fuente():
     """, unsafe_allow_html=True)
 
 # --- 5. NAVEGACIÓN ---
-st.sidebar.markdown("""<div class="sidebar-header"><div class="sidebar-logo">ME</div><div><div class="sidebar-main-title">Monitor Electoral</div><div class="sidebar-subtitle">Perú 2026</div></div></div>""", unsafe_allow_html=True)
+logo_url = "https://raw.githubusercontent.com/maoliveroc304/monitor-electoral-peru-2026/main/data/fotos/voto_informado.jpg"
+
+st.sidebar.markdown(f"""
+<div class="sidebar-header">
+  <img src="{logo_url}" style="width:40px; height:40px; border-radius:50%; object-fit:cover; margin-right:12px;">
+  <div>
+    <div class="sidebar-main-title">Monitor Electoral</div>
+    <div class="sidebar-subtitle">Perú 2026</div>
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
 
 # Lógica de Navegación
 if 'page_selection' not in st.session_state:
