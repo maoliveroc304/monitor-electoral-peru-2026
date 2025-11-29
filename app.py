@@ -669,7 +669,7 @@ def view_fuente():
     """, unsafe_allow_html=True)
 
 # --- 5. NAVEGACIÓN ---
-logo_url = "https://raw.githubusercontent.com/maoliveroc304/monitor-electoral-peru-2026/main/data/fotos/imagen_logo.png"
+logo_url = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcREzWuET9qRK3c6MWAdkpny1xoJOZ_MDyVUnQ&s"
 
 st.sidebar.markdown(f"""
 <div class="sidebar-header">
