@@ -43,11 +43,9 @@ def local_css():
             border-right: 1px solid #E2E8F0;
         }
 
-        /* Títulos */
-        h1 { font-weight: 800; color: #0F172A; font-size: 2.2rem; margin-bottom: 0.5rem; }
+        h1 { font-weight: 800; color: #0F172A; font-size: 2rem; margin-bottom: 0.5rem; }
         .intro-text { color: #64748B; font-size: 1rem; line-height: 1.6; margin-bottom: 2rem; }
 
-        /* KPI CARDS */
         .kpi-card {
             background-color: #FFFFFF; padding: 20px; border-radius: 12px;
             border: 1px solid #E2E8F0; box-shadow: 0 1px 3px rgba(0,0,0,0.05);
@@ -57,7 +55,6 @@ def local_css():
         .kpi-value { color: #0F172A; font-size: 1.5rem; font-weight: 700; }
         .kpi-subtitle { font-size: 0.75rem; color: #94A3B8; margin-top: 4px; font-weight: 400; }
 
-        /* TABLA DE CANDIDATOS (HOME) */
         .table-header { display: flex; padding: 12px 16px; border-bottom: 1px solid #F1F5F9; background-color: #FAFAF9; border-top-left-radius: 12px; border-top-right-radius: 12px; margin-top: 20px; }
         .col-header { font-size: 0.75rem; color: #64748B; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
         .candidate-row-clean { display: flex; align-items: center; padding: 16px; background-color: #FFFFFF; border-bottom: 1px solid #F1F5F9; transition: background 0.2s; }
@@ -67,7 +64,6 @@ def local_css():
         .cand-party { color: #64748B; font-size: 0.9rem; }
         .btn-link { color: #2563EB; font-weight: 600; font-size: 0.85rem; text-decoration: none; cursor: pointer; }
 
-        /* GRID CANDIDATOS */
         .cand-grid-card {
             background-color: #FFFFFF; padding: 24px; border-radius: 16px;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); border: 1px solid #F1F5F9;
@@ -77,27 +73,22 @@ def local_css():
         .cand-grid-btn { display: block; width: 100%; padding: 10px; margin-top: 15px; background-color: #EFF6FF; color: #2563EB; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 0.9rem; }
         .cand-grid-btn:hover { background-color: #DBEAFE; }
 
-        /* PROPUESTAS */
         .prop-card { background-color: #FFFFFF; padding: 20px; border-radius: 12px; border: 1px solid #F1F5F9; box-shadow: 0 2px 4px rgba(0,0,0,0.02); height: 100%; }
         .prop-badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; margin-bottom: 10px; background-color: #F1F5F9; color: #475569; }
 
-        /* RADIOGRAFÍA CARDS */
         .radio-card { background-color: #FFFFFF; padding: 24px; border-radius: 12px; border: 1px solid #E2E8F0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); margin-bottom: 20px; }
         .radio-title { font-size: 1rem; font-weight: 600; color: #0F172A; margin-bottom: 10px; }
         
-        /* EXTRAS */
         .video-card { background: white; border-radius: 12px; overflow: hidden; border: 1px solid #E2E8F0; margin-bottom: 20px; }
         .video-title { padding: 12px 16px; font-weight: 600; font-size: 0.95rem; color: #0F172A; border-bottom: 1px solid #F1F5F9; }
         .bottom-card { background: #FAFAFA; padding: 20px; border-radius: 8px; margin-top: 20px; }
         .bottom-title { font-weight: 700; font-size: 0.95rem; color: #0F172A; margin-bottom: 5px; }
         .bottom-desc { font-size: 0.85rem; color: #64748B; }
 
-        /* SIDEBAR */
         .sidebar-header { padding: 20px 10px 30px 10px; display: flex; align-items: center; }
         .sidebar-logo { width: 40px; height: 40px; background: #0F172A; border-radius: 50%; color: white; display: flex; justify-content: center; align-items: center; font-weight: bold; margin-right: 12px; }
         .sidebar-main-title { font-weight: 700; color: #0F172A; font-size: 15px; }
         .sidebar-subtitle { font-size: 12px; color: #64748B; }
-
     </style>
     """, unsafe_allow_html=True)
 
@@ -108,12 +99,8 @@ local_css()
 def load_data():
     # --- A. DATOS BANCO MUNDIAL (API EN VIVO) ---
     try:
-        indicators = {
-            'NY.GDP.MKTP.KD.ZG': 'PIB', 
-            'SL.UEM.TOTL.ZS': 'Desempleo', 
-            'SI.POV.NAHC': 'Pobreza',
-            'SI.POV.GINI': 'Gini'
-        }
+        indicators = {'NY.GDP.MKTP.KD.ZG': 'PIB', 'SL.UEM.TOTL.ZS': 'Desempleo', 
+                      'SI.POV.NAHC': 'Pobreza', 'SI.POV.GINI': 'Gini'}
         wb_data = wb.download(indicator=list(indicators.keys()), country=['PE'], start=2000, end=datetime.datetime.now().year)
         wb_data = wb_data.reset_index().rename(columns=indicators).sort_values('year')
         status = "✅ Online"
@@ -136,22 +123,26 @@ def load_data():
     df_co2 = pd.DataFrame()
     df_gobernanza = pd.DataFrame()
 
+    def read_csv_safe(path, **kwargs):
+        try: return pd.read_csv(path, **kwargs)
+        except: 
+            try: return pd.read_csv(path, encoding='latin-1', **kwargs)
+            except: return pd.DataFrame()
+
     try:
-        # 1. ANEMIA (anemia.csv)
-        # Formato: Limpio, header en fila 0
+        # 1. ANEMIA (Header en fila 0)
         file_anemia = os.path.join(data_path, "anemia.csv")
         if os.path.exists(file_anemia):
-            df_anemia = pd.read_csv(file_anemia)
+            df_anemia = read_csv_safe(file_anemia)
             if 'Anemia' in df_anemia.columns and 'Evaluados' in df_anemia.columns:
                  df_anemia = df_anemia.groupby('Año')[['Anemia', 'Evaluados']].sum().reset_index()
                  df_anemia['Porcentaje'] = (df_anemia['Anemia'] / df_anemia['Evaluados']) * 100
 
-        # 2. MÉDICOS (medicos.csv)
-        # Formato: 4 líneas de título basura. Header real en fila 5.
+        # 2. MÉDICOS (Header en fila 4)
         file_medicos = os.path.join(data_path, "medicos.csv")
         if os.path.exists(file_medicos):
-            df_medicos_raw = pd.read_csv(file_medicos, header=4) # Salta 4 líneas
-            if 'Departamento' in df_medicos_raw.columns:
+            df_medicos_raw = read_csv_safe(file_medicos, header=4)
+            if not df_medicos_raw.empty and 'Departamento' in df_medicos_raw.columns:
                 df_medicos = df_medicos_raw[df_medicos_raw['Departamento'].str.contains('Total', case=False, na=False)]
                 if not df_medicos.empty:
                     df_medicos = df_medicos.melt(id_vars=['Departamento'], var_name='Año', value_name='Habitantes')
@@ -159,67 +150,57 @@ def load_data():
                     df_medicos['Habitantes'] = pd.to_numeric(df_medicos['Habitantes'], errors='coerce')
                     df_medicos = df_medicos.dropna(subset=['Año', 'Habitantes']).sort_values('Año')
         
-        # 3. INSEGURIDAD (inseguridad.csv)
-        # Formato: 1 línea de título basura. Header real en fila 2.
+        # 3. INSEGURIDAD (Header en fila 1)
         file_inseguridad = os.path.join(data_path, "inseguridad.csv")
         if os.path.exists(file_inseguridad):
-            df_inseguridad = pd.read_csv(file_inseguridad, header=1) # Salta 1 línea
+            df_inseguridad = read_csv_safe(file_inseguridad, header=1)
         
-        # 4. VICTIMIZACIÓN (victimizacion.csv)
-        # Formato: 1 línea de título basura. Header real en fila 2.
+        # 4. VICTIMIZACIÓN (Header en fila 1)
         file_victimizacion = os.path.join(data_path, "victimizacion.csv")
         if os.path.exists(file_victimizacion):
-            df_victimizacion = pd.read_csv(file_victimizacion, header=1) # Salta 1 línea
+            df_victimizacion = read_csv_safe(file_victimizacion, header=1)
 
-        # 5. SERVICIOS BÁSICOS (servicios_basicos.csv)
-        # Formato: Limpio, header en fila 0. Columnas: "Servicios básicos_(EH)", "value"
+        # 5. SERVICIOS BÁSICOS (Header en fila 0)
         file_servicios = os.path.join(data_path, "servicios_basicos.csv")
         if os.path.exists(file_servicios):
-            df_servicios_basicos = pd.read_csv(file_servicios)
-            # Renombrar para que coincida con el gráfico
-            df_servicios_basicos = df_servicios_basicos.rename(columns={
-                'Servicios básicos_(EH)': 'Servicio',
-                'value': 'Porcentaje'
-            })
+            df_servicios_raw = read_csv_safe(file_servicios)
+            if not df_servicios_raw.empty and len(df_servicios_raw.columns) >= 3:
+                df_servicios_basicos = df_servicios_raw.iloc[:, [0, 2]].copy()
+                df_servicios_basicos.columns = ['Servicio', 'Porcentaje']
 
-        # 6. INTERNET QUINTILES (internet_quintiles.csv)
-        # Formato: 1 línea de título basura. Header real en fila 2.
+        # 6. INTERNET QUINTILES (Header en fila 1)
         file_internet = os.path.join(data_path, "internet_quintiles.csv")
         if os.path.exists(file_internet):
-            df_internet_quintiles = pd.read_csv(file_internet, header=1) # Salta 1 línea
-            # Renombrar para el gráfico
-            df_internet_quintiles = df_internet_quintiles.rename(columns={'value': 'Porcentaje'})
+            df_internet_raw = read_csv_safe(file_internet, header=1)
+            if not df_internet_raw.empty and len(df_internet_raw.columns) >= 3:
+                df_internet_quintiles = df_internet_raw.iloc[:, [0, 2]].copy()
+                df_internet_quintiles.columns = ['Quintil', 'Porcentaje']
 
-        # 7. BOSQUES (bosques.csv)
-        # Formato: 1 línea de título basura. Header real en fila 2.
+        # 7. BOSQUES (Header en fila 1)
         file_bosques = os.path.join(data_path, "bosques.csv")
         if os.path.exists(file_bosques):
-            df_bosques = pd.read_csv(file_bosques, header=1) # Salta 1 línea
+            df_bosques = read_csv_safe(file_bosques, header=1)
+            if not df_bosques.empty:
+                # Renombramos explícitamente para quitar la tilde y evitar el error
+                df_bosques.columns = ['Año', 'Hectareas']
 
-        # 8. CO2 (emisions_co2.csv)
-        # Formato: 1 línea de título basura. Header real en fila 2.
-        # Valores: Strings con comas ("58,403") -> Necesita limpieza
-        file_co2 = os.path.join(data_path, "emisions_co2.csv") # Ojo con el nombre "emisions"
+        # 8. CO2 (Header en fila 1)
+        file_co2 = os.path.join(data_path, "emisions_co2.csv")
         if os.path.exists(file_co2):
-            df_co2 = pd.read_csv(file_co2, header=1) # Salta 1 línea
-            # Limpieza de datos (quitar comas y convertir a float)
-            if 'CO2' in df_co2.columns:
-                df_co2['Megatoneladas'] = df_co2['CO2'].astype(str).str.replace(',', '').astype(float)
+            df_co2 = read_csv_safe(file_co2, header=1)
+            if not df_co2.empty:
+                df_co2.columns = ['Año', 'Megatoneladas']
+                if df_co2['Megatoneladas'].dtype == object:
+                    df_co2['Megatoneladas'] = df_co2['Megatoneladas'].str.replace(',', '').astype(float)
 
-        # 9. GOBERNANZA (eficacia_gobierno.csv)
-        # Formato: 1 línea de título basura. Header real en fila 2.
-        # Contenido: Serie temporal (Año, Puntuación). El gráfico esperaba Indicadores.
-        # ADAPTACIÓN: Usaremos el último valor de este CSV para mostrar el indicador "Eficacia"
+        # 9. GOBERNANZA (Header en fila 1)
         file_gob = os.path.join(data_path, "eficacia_gobierno.csv")
         if os.path.exists(file_gob):
-            df_gob_raw = pd.read_csv(file_gob, header=1) # Salta 1 línea
+            df_gob_raw = read_csv_safe(file_gob, header=1)
             if not df_gob_raw.empty:
-                ultimo_valor = df_gob_raw.sort_values('Año').iloc[-1]['Puntuación']
-                # Creamos el dataframe que espera el gráfico
-                df_gobernanza = pd.DataFrame({
-                    'Indicador': ['Eficacia del Gobierno'],
-                    'Puntaje': [ultimo_valor]
-                })
+                df_gob_raw = df_gob_raw.sort_values(df_gob_raw.columns[0])
+                ultimo_valor = df_gob_raw.iloc[-1, 1]
+                df_gobernanza = pd.DataFrame({'Indicador': ['Eficacia del Gobierno'], 'Puntaje': [ultimo_valor]})
         
     except Exception as e:
         print(f"Error cargando CSVs: {e}")
@@ -240,37 +221,24 @@ def load_data():
     except Exception:
         df_cand = pd.DataFrame({'Nombre': [], 'Partido': [], 'Foto': []})
 
-    # 2. PROPUESTAS 
     df_prop = pd.DataFrame({
         'Candidato': ['Keiko Fujimori', 'Rafael López Aliaga', 'César Acuña', 'Hernando de Soto', 'Susel Paredes'],
         'Eje': ['Economía', 'Seguridad', 'Educación', 'Economía', 'Derechos Civiles'],
         'Subtema': ['Plan Rescate 2026', 'Plan Bukele', 'Plata como Cancha para Educar', 'Capitalismo Popular', 'Unión Civil'],
-        'Texto': [
-            'Propuesta de shock de inversiones y desbloqueo minero inmediato.',
-            'Creación de cárceles de máxima seguridad en zonas aisladas.',
-            'Inversión del 6% del PBI en infraestructura educativa universitaria.',
-            'Titulación masiva de propiedades informales para acceso a crédito.',
-            'Reconocimiento legal de uniones de hecho para parejas del mismo sexo.'
-        ],
+        'Texto': ['Shock de inversiones.', 'Cárceles de alta seguridad.', '6% PBI educación.', 'Titulación masiva.', 'Unión civil ya.'],
         'Tipo': ['Decreto', 'Infraestructura', 'Ley', 'Programa', 'Ley']
     })
 
     return df_cand, df_prop, wb_data, df_anemia, df_medicos, df_inseguridad, df_victimizacion, df_edu_analfa, df_edu_deficit, df_servicios_basicos, df_internet_quintiles, df_bosques, df_co2, df_gobernanza, status
 
-# Desempaquetar todas las variables
+# Desempaquetar
 df_cand, df_prop, df_wb, df_anemia, df_medicos, df_inseguridad, df_victimizacion, df_edu_analfa, df_edu_deficit, df_servicios, df_internet, df_bosques, df_co2, df_gob, status_msg = load_data()
 
-# --- 3. COMPONENTES VISUALES ---
+# --- 3. VISTAS ---
 
 def kpi_box(label, value, subtitle=None):
-    subtitle_html = f'<div class="kpi-subtitle">{subtitle}</div>' if subtitle else ''
-    st.markdown(f"""
-    <div class="kpi-card">
-        <div class="kpi-label">{label}</div>
-        <div class="kpi-value">{value}</div>
-        {subtitle_html}
-    </div>
-    """, unsafe_allow_html=True)
+    sub = f'<div class="kpi-subtitle">{subtitle}</div>' if subtitle else ''
+    st.markdown(f'<div class="kpi-card"><div class="kpi-label">{label}</div><div class="kpi-value">{value}</div>{sub}</div>', unsafe_allow_html=True)
 
 def render_candidate_table_row(img, name, party):
     st.markdown(f"""
@@ -291,12 +259,7 @@ def render_candidate_table_row(img, name, party):
     """, unsafe_allow_html=True)
 
 def render_bottom_card(title, desc):
-    st.markdown(f"""
-    <div class="bottom-card">
-        <div class="bottom-title">{title}</div>
-        <div class="bottom-desc">{desc}</div>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown(f'<div class="bottom-card"><div class="bottom-title">{title}</div><div class="bottom-desc">{desc}</div></div>', unsafe_allow_html=True)
 
 def render_section_header(title, subtitle):
     st.markdown(f"## {title}")
@@ -428,8 +391,7 @@ def view_indicadores():
         "7. Ambiente", "8. Gobernanza"
     ])
     
-    # 1. ECONOMÍA
-    with tabs[0]: 
+    with tabs[0]: # Economía
         c1, c2 = st.columns(2)
         with c1:
             st.markdown('<div class="radio-card"><div class="radio-title">Crecimiento del PBI (% anual)</div>', unsafe_allow_html=True)
@@ -448,8 +410,7 @@ def view_indicadores():
             st.markdown('</div>', unsafe_allow_html=True)
         st.caption("Fuente: Banco Mundial (API)")
 
-    # 2. POBREZA
-    with tabs[1]:
+    with tabs[1]: # Social
         c1, c2 = st.columns(2)
         with c1:
             st.markdown('<div class="radio-card"><div class="radio-title">Pobreza Monetaria Nacional (%)</div>', unsafe_allow_html=True)
@@ -470,8 +431,7 @@ def view_indicadores():
                     st.plotly_chart(fig4, use_container_width=True)
             st.markdown('</div>', unsafe_allow_html=True)
 
-    # 3. EDUCACIÓN
-    with tabs[2]:
+    with tabs[2]: # Educación
         c1, c2 = st.columns(2)
         with c1:
             st.markdown('<div class="radio-card"><div class="radio-title">Tasa de Analfabetismo (15+ años)</div>', unsafe_allow_html=True)
@@ -489,8 +449,7 @@ def view_indicadores():
             st.markdown('</div>', unsafe_allow_html=True)
         st.caption("Fuente: ESCALE - MINEDU")
 
-    # 4. SALUD
-    with tabs[3]:
+    with tabs[3]: # Salud
         c1, c2 = st.columns(2)
         with c1:
             st.markdown('<div class="radio-card"><div class="radio-title">Anemia Infantil (%)</div>', unsafe_allow_html=True)
@@ -509,8 +468,7 @@ def view_indicadores():
             else: st.info("Datos de médicos no disponibles.")
             st.markdown('</div>', unsafe_allow_html=True)
 
-    # 5. SEGURIDAD
-    with tabs[4]:
+    with tabs[4]: # Seguridad
         c1, c2 = st.columns(2)
         with c1:
             st.markdown('<div class="radio-card"><div class="radio-title">Percepción de Inseguridad (2024)</div>', unsafe_allow_html=True)
@@ -524,8 +482,7 @@ def view_indicadores():
             else: st.info("Datos de victimización no disponibles.")
             st.markdown('</div>', unsafe_allow_html=True)
 
-    # 6. INFRAESTRUCTURA
-    with tabs[5]:
+    with tabs[5]: # Infraestructura
         c1, c2 = st.columns(2)
         with c1:
             st.markdown('<div class="radio-card"><div class="radio-title">Servicios Básicos (Vivienda)</div>', unsafe_allow_html=True)
@@ -538,8 +495,7 @@ def view_indicadores():
             else: st.info("Datos de internet no disponibles.")
             st.markdown('</div>', unsafe_allow_html=True)
 
-    # 7. AMBIENTE
-    with tabs[6]:
+    with tabs[6]: # Ambiente
         c1, c2 = st.columns(2)
         with c1:
             st.markdown('<div class="radio-card"><div class="radio-title">Pérdida de Bosques (Ha)</div>', unsafe_allow_html=True)
@@ -552,8 +508,7 @@ def view_indicadores():
             else: st.info("Datos de CO2 no disponibles.")
             st.markdown('</div>', unsafe_allow_html=True)
 
-    # 8. GOBERNANZA
-    with tabs[7]:
+    with tabs[7]: # Gobernanza
         st.markdown('<div class="radio-card"><div class="radio-title">Indicadores de Gobernanza (0-100)</div>', unsafe_allow_html=True)
         if not df_gob.empty: st.plotly_chart(px.bar(df_gob, x='Puntaje', y='Indicador', orientation='h', range_x=[0,100], template='plotly_white').update_traces(marker_color='#7C3AED'), use_container_width=True)
         else: st.info("Datos de gobernanza no disponibles.")
