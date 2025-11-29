@@ -643,12 +643,15 @@ elif st.session_state['page_selection'] == "Participación Ciudadana": view_part
 elif st.session_state['page_selection'] == "Fuente de Datos": view_fuente()
 
 # Chatbot
-components.html("""
+chat_icon = "https://raw.githubusercontent.com/maoliveroc304/monitor-electoral-peru-2026/main/data/fotos/voto_informado.png"
+
+components.html(f"""
 <script src="https://www.gstatic.com/dialogflow-console/fast/messenger/bootstrap.js?v=1"></script>
 <df-messenger
   intent="WELCOME"
   chat-title="Asistente Informado 🤖"
   agent-id="0dc0a346-2828-4cb8-a95e-14c5ba301baa"
   language-code="es"
+  chat-icon="{chat_icon}"
 ></df-messenger>
 """, height=600)
