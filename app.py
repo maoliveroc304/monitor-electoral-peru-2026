@@ -8,7 +8,6 @@ import os
 from streamlit_option_menu import option_menu
 
 # IMPORTAR DATOS EXTERNOS
-# Intentamos importar tanto candidatos como propuestas
 try:
     from candidatos_data import obtener_data_candidatos
 except ImportError:
@@ -124,7 +123,7 @@ def local_css():
 
 local_css()
 
-# --- 2. GESTIÓN DE DATOS INTELIGENTE ---
+# --- 2. GESTIÓN DE DATOS ---
 
 def smart_read_csv(filepath, expected_columns=None, keyword_search=None):
     if not os.path.exists(filepath):
@@ -162,7 +161,7 @@ def smart_read_csv(filepath, expected_columns=None, keyword_search=None):
 
 @st.cache_data(ttl=3600)
 def load_data():
-    # --- A. DATOS BANCO MUNDIAL ---
+    # A. BANCO MUNDIAL
     try:
         indicators = {'NY.GDP.MKTP.KD.ZG': 'PIB', 'SL.UEM.TOTL.ZS': 'Desempleo', 
                       'SI.POV.NAHC': 'Pobreza', 'SI.POV.GINI': 'Gini'}
@@ -173,27 +172,27 @@ def load_data():
         wb_data = pd.DataFrame()
         status = "⚠️ Offline"
 
-    # --- B. DATOS CSV LOCALES ---
+    # B. CSV LOCALES
     current_dir = os.path.dirname(os.path.abspath(__file__))
     data_path = os.path.join(current_dir, 'data')
     
-    # Inicialización
+    # Inicializar TODOS los DataFrames para evitar NameError
     df_anemia = pd.DataFrame()
     df_medicos = pd.DataFrame()
     df_inseguridad = pd.DataFrame()
     df_victimizacion = pd.DataFrame()
-    df_servicios_basicos = pd.DataFrame() 
-    df_internet_quintiles = pd.DataFrame() 
+    df_servicios = pd.DataFrame() # Corregido: Se usará este nombre en el return
+    df_internet = pd.DataFrame()  # Corregido: Se usará este nombre en el return
     df_bosques = pd.DataFrame() 
     df_co2 = pd.DataFrame() 
-    df_gobernanza = pd.DataFrame() 
+    df_gob = pd.DataFrame()      # Corregido: Se usará este nombre en el return
     df_deuda = pd.DataFrame()
 
     try:
         # 1. ANEMIA
         file_anemia = os.path.join(data_path, "anemia.csv")
         df_anemia = smart_read_csv(file_anemia, keyword_search="Año")
-        if not df_anemia.empty and 'Anemia' in df_anemia.columns and 'Evaluados' in df_anemia.columns:
+        if not df_anemia.empty and 'Anemia' in df_anemia.columns:
              df_anemia = df_anemia.groupby('Año')[['Anemia', 'Evaluados']].sum().reset_index()
              df_anemia['Porcentaje'] = (df_anemia['Anemia'] / df_anemia['Evaluados']) * 100
 
@@ -206,7 +205,7 @@ def load_data():
                 df_medicos = df_medicos.melt(id_vars=['Departamento'], var_name='Año', value_name='Habitantes')
                 df_medicos['Año'] = pd.to_numeric(df_medicos['Año'], errors='coerce')
                 if df_medicos['Habitantes'].dtype == object:
-                    df_medicos['Habitantes'] = df_medicos['Habitantes'].astype(str).str.replace(' ', '', regex=False)
+                     df_medicos['Habitantes'] = df_medicos['Habitantes'].astype(str).str.replace(' ', '', regex=False)
                 df_medicos['Habitantes'] = pd.to_numeric(df_medicos['Habitantes'], errors='coerce')
                 df_medicos = df_medicos.dropna(subset=['Año', 'Habitantes']).sort_values('Año')
 
@@ -217,7 +216,7 @@ def load_data():
         df_victimizacion = smart_read_csv(os.path.join(data_path, "victimizacion.csv"), keyword_search="AÑO")
 
         # 5. SERVICIOS 
-        df_servicios_basicos = smart_read_csv(os.path.join(data_path, "servicios_basicos.csv"), expected_columns=['Servicio', 'Porcentaje'])
+        df_servicios = smart_read_csv(os.path.join(data_path, "servicios_basicos.csv"), expected_columns=['Servicio', 'Porcentaje'])
         
         # 6. INTERNET QUINTILES
         file_internet = os.path.join(data_path, "internet_quintiles.csv")
@@ -227,7 +226,7 @@ def load_data():
                 df_temp.columns = df_temp.columns.str.strip()
                 if 'Quintil' in df_temp.columns:
                     value_vars = [c for c in df_temp.columns if c != 'Quintil']
-                    df_internet_quintiles = df_temp.melt(id_vars=['Quintil'], value_vars=value_vars, var_name='Área', value_name='Porcentaje')
+                    df_internet = df_temp.melt(id_vars=['Quintil'], value_vars=value_vars, var_name='Área', value_name='Porcentaje')
             except: pass
         
         # 7. BOSQUES
@@ -237,7 +236,7 @@ def load_data():
         df_co2 = smart_read_csv(os.path.join(data_path, "emisions_co2.csv"), expected_columns=['Año', 'Megatoneladas'])
         
         # 9. GOBERNANZA
-        df_gobernanza = smart_read_csv(os.path.join(data_path, "eficacia_gobierno.csv"), expected_columns=['Indicador', 'Puntaje'])
+        df_gob = smart_read_csv(os.path.join(data_path, "eficacia_gobierno.csv"), expected_columns=['Indicador', 'Puntaje'])
 
         # 10. DEUDA PÚBLICA
         df_deuda = smart_read_csv(os.path.join(data_path, "deuda_publica.csv"), expected_columns=['Año', 'Soles'])
@@ -245,22 +244,23 @@ def load_data():
     except Exception as e:
         print(f"Error cargando CSVs: {e}")
 
-    # --- C. DATOS MANUALES ---
+    # C. MANUALES
     df_edu_analfa = pd.DataFrame({'year': np.arange(2013, 2023), 'Tasa': [6.2, 6.0, 5.9, 5.9, 5.8, 5.6, 5.5, 5.5, 5.2, 5.1]})
     df_edu_deficit = pd.DataFrame({'Año': [2016, 2018, 2020, 2022], 'Servicios': [1200, 1150, 1100, 1050]})
 
-    # --- D. CANDIDATOS Y PROPUESTAS ---
+    # D. CANDIDATOS Y PROPUESTAS
     try: df_cand = obtener_data_candidatos()
     except: df_cand = pd.DataFrame({'Nombre': [], 'Partido': [], 'Foto': []})
 
     try: df_prop = obtener_data_propuestas()
     except: df_prop = pd.DataFrame(columns=['Candidato', 'Eje', 'Subtema', 'Texto', 'Tipo'])
 
-    return df_cand, df_prop, wb_data, df_anemia, df_medicos, df_inseguridad, df_victimizacion, df_edu_analfa, df_edu_deficit, df_servicios, df_internet, df_bosques, df_co2, df_gobernanza, df_deuda, status
+    return df_cand, df_prop, wb_data, df_anemia, df_medicos, df_inseguridad, df_victimizacion, df_edu_analfa, df_edu_deficit, df_servicios, df_internet, df_bosques, df_co2, df_gob, df_deuda, status
 
+# Cargar todo
 df_cand, df_prop, df_wb, df_anemia, df_medicos, df_inseguridad, df_victimizacion, df_edu_analfa, df_edu_deficit, df_servicios, df_internet, df_bosques, df_co2, df_gob, df_deuda, status_msg = load_data()
 
-# --- 3. COMPONENTES VISUALES ---
+# --- 3. HELPERS ---
 
 def kpi_box(label, value, subtitle=None):
     sub = f'<div class="kpi-subtitle">{subtitle}</div>' if subtitle else ''
@@ -269,18 +269,12 @@ def kpi_box(label, value, subtitle=None):
 def render_candidate_table_row(img, name, party):
     st.markdown(f"""
     <div class="candidate-row-clean">
-        <div style="width: 50px; margin-right: 15px;">
-            <img src="{img}" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">
-        </div>
-        <div style="width: 30%;">
+        <img src="{img}" style="width:40px; height:40px; border-radius:50%; margin-right:15px; object-fit:cover;">
+        <div style="flex-grow:1;">
             <div class="cand-name">{name}</div>
-        </div>
-        <div style="width: 50%;">
             <div class="cand-party">{party}</div>
         </div>
-        <div style="width: 20%; text-align: right;">
-            <a href="#" class="btn-link">Ver Perfil</a>
-        </div>
+        <a href="#" class="btn-link">Ver Perfil</a>
     </div>
     """, unsafe_allow_html=True)
 
@@ -300,13 +294,11 @@ def render_proposal_card(subtema, tipo, texto):
     </div>
     """, unsafe_allow_html=True)
 
-# --- HELPER: GRÁFICO CON ZOOM INTELIGENTE ---
+# HELPER: GRÁFICO CON ZOOM INTELIGENTE (5 AÑOS)
 def plot_zoom_chart(df, x_col, y_col, color, chart_type='line'):
     if df.empty: return None
     
-    df[x_col] = pd.to_numeric(df[x_col], errors='coerce')
-    df = df.dropna(subset=[x_col])
-    
+    # Calcular rango inicial: Último año - 5
     max_x = df[x_col].max()
     min_x = max_x - 5
     
@@ -319,9 +311,9 @@ def plot_zoom_chart(df, x_col, y_col, color, chart_type='line'):
         
     fig.update_layout(
         xaxis=dict(
-            rangeslider=dict(visible=True),
+            rangeslider=dict(visible=True), # Barra inferior visible
             type="linear",
-            range=[min_x, max_x + 0.5]
+            range=[min_x, max_x + 0.5] # Zoom inicial por defecto
         ),
         margin=dict(l=0, r=0, t=0, b=0)
     )
@@ -347,16 +339,14 @@ def view_inicio():
     with c2: kpi_box("Partidos en Carrera", f"{len(df_cand)}")
     with c3: kpi_box("Días para la elección", f"{days_left}", "12 de Abril, 2026")
     
-    st.markdown("<br>", unsafe_allow_html=True)
-    st.subheader("Candidatos (Vista Previa)")
+    st.markdown("<br>### Candidatos (Vista Previa)", unsafe_allow_html=True)
     st.markdown("""<div class="table-header"><div style="width: 50px; margin-right: 15px;"></div><div class="col-header" style="width: 30%;">Candidato</div><div class="col-header" style="width: 50%;">Partido Político</div></div>""", unsafe_allow_html=True)
     st.markdown('<div style="background: white; border: 1px solid #E2E8F0; border-top: none; border-bottom-left-radius: 12px; border-bottom-right-radius: 12px;">', unsafe_allow_html=True)
     for _, row in df_cand.head(3).iterrows():
         render_candidate_table_row(row['Foto'], row['Nombre'], row['Partido'])
     st.markdown('</div>', unsafe_allow_html=True)
 
-    st.markdown("<br>", unsafe_allow_html=True)
-    st.subheader("Recursos")
+    st.markdown("<br>### Recursos", unsafe_allow_html=True)
     c1, c2 = st.columns(2)
     with c1: 
         st.markdown('<div class="video-card"><div class="video-title">🗳️ Cómo votar</div>', unsafe_allow_html=True)
