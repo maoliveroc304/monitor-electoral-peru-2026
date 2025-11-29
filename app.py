@@ -7,7 +7,7 @@ import numpy as np
 import os
 from streamlit_option_menu import option_menu
 
-# IMPORTAR DATOS EXTERNOS
+# IMPORTAR DATOS EXTERNOS DE CANDIDATOS
 try:
     from candidatos_data import obtener_data_candidatos
 except ImportError:
@@ -181,11 +181,11 @@ def load_data():
     df_medicos = pd.DataFrame()
     df_inseguridad = pd.DataFrame()
     df_victimizacion = pd.DataFrame()
-    df_servicios = pd.DataFrame() # Corregido: Se usará este nombre en el return
-    df_internet = pd.DataFrame()  # Corregido: Se usará este nombre en el return
+    df_servicios = pd.DataFrame() # Corregido
+    df_internet = pd.DataFrame()  # Corregido
     df_bosques = pd.DataFrame() 
     df_co2 = pd.DataFrame() 
-    df_gob = pd.DataFrame()      # Corregido: Se usará este nombre en el return
+    df_gob = pd.DataFrame()      # Corregido
     df_deuda = pd.DataFrame()
 
     try:
@@ -339,14 +339,16 @@ def view_inicio():
     with c2: kpi_box("Partidos en Carrera", f"{len(df_cand)}")
     with c3: kpi_box("Días para la elección", f"{days_left}", "12 de Abril, 2026")
     
-    st.markdown("<br>### Candidatos (Vista Previa)", unsafe_allow_html=True)
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.subheader("Candidatos Presidenciales (Vista Previa)")
     st.markdown("""<div class="table-header"><div style="width: 50px; margin-right: 15px;"></div><div class="col-header" style="width: 30%;">Candidato</div><div class="col-header" style="width: 50%;">Partido Político</div></div>""", unsafe_allow_html=True)
     st.markdown('<div style="background: white; border: 1px solid #E2E8F0; border-top: none; border-bottom-left-radius: 12px; border-bottom-right-radius: 12px;">', unsafe_allow_html=True)
     for _, row in df_cand.head(3).iterrows():
         render_candidate_table_row(row['Foto'], row['Nombre'], row['Partido'])
     st.markdown('</div>', unsafe_allow_html=True)
 
-    st.markdown("<br>### Recursos", unsafe_allow_html=True)
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.subheader("Recursos")
     c1, c2 = st.columns(2)
     with c1: 
         st.markdown('<div class="video-card"><div class="video-title">🗳️ Cómo votar</div>', unsafe_allow_html=True)
@@ -560,7 +562,7 @@ with st.sidebar:
         menu_title=None,
         options=opts,
         icons=["house-door-fill", "people-fill", "file-text-fill", "bar-chart-fill", "chat-text-fill", "database-fill"],
-        default_index=default_index, # Clave para la sincronización
+        default_index=default_idx, # Corrección: Usar la variable correcta para sincronizar
         styles={
             "container": {"padding": "0!important", "background-color": "#ffffff"},
             "icon": {"color": "#64748B", "font-size": "16px"}, 
