@@ -290,11 +290,16 @@ def render_proposal_card(subtema, tipo, texto):
     </div>
     """, unsafe_allow_html=True)
 
-# HELPER: GRÁFICO CON ZOOM INTELIGENTE (5 AÑOS)
+# HELPER: GRÁFICO CON ZOOM INTELIGENTE (CORREGIDO)
 def plot_zoom_chart(df, x_col, y_col, color, chart_type='line'):
     if df.empty: return None
     
-    # Calcular rango inicial: Último año - 5
+    # Convertir a numérico para evitar error de resta con string
+    df[x_col] = pd.to_numeric(df[x_col], errors='coerce')
+    df = df.dropna(subset=[x_col])
+    
+    if df.empty: return None
+
     max_x = df[x_col].max()
     min_x = max_x - 5
     
@@ -307,9 +312,9 @@ def plot_zoom_chart(df, x_col, y_col, color, chart_type='line'):
         
     fig.update_layout(
         xaxis=dict(
-            rangeslider=dict(visible=True), # Barra inferior visible
+            rangeslider=dict(visible=True),
             type="linear",
-            range=[min_x, max_x + 0.5] # Zoom inicial por defecto
+            range=[min_x, max_x + 0.5]
         ),
         margin=dict(l=0, r=0, t=0, b=0)
     )
@@ -358,11 +363,10 @@ def view_inicio():
 def view_candidatos():
     render_section_header("Candidatos", "Directorio completo de aspirantes a la presidencia.")
     
-    # Navegación manual
+    # Función de navegación interna
     def go_to_plan(name):
         st.session_state['page_selection'] = 'Planes de Gobierno'
         st.session_state['selected_candidate'] = name
-        # Forzar recarga para aplicar cambio
         st.rerun()
 
     cols = st.columns(3)
@@ -377,14 +381,12 @@ def view_candidatos():
             </div>
             """, unsafe_allow_html=True)
             
-            # Botón simple que llama a la función
             if st.button(f"Ver Plan de Gobierno", key=f"btn_{idx}"):
                 go_to_plan(row['Nombre'])
 
 def view_planes():
     render_section_header("Planes de Gobierno", "Comparador inteligente de propuestas electorales.")
     
-    # Preselección automática
     idx_a = 0
     if 'selected_candidate' in st.session_state and st.session_state['selected_candidate'] in df_prop['Candidato'].unique():
         try:
@@ -543,23 +545,29 @@ def view_participacion():
 def view_fuente():
     st.json({"Fuente": "Banco Mundial + JNE + INEI + CEPAL + GFW"})
 
-# --- 5. NAVEGACIÓN CON ESTADO ---
+# --- 5. NAVEGACIÓN ---
 st.sidebar.markdown("""<div class="sidebar-header"><div class="sidebar-logo">ME</div><div><div class="sidebar-main-title">Monitor Electoral</div><div class="sidebar-subtitle">Perú 2026</div></div></div>""", unsafe_allow_html=True)
 
-# Inicializar estado
 if 'page_selection' not in st.session_state:
     st.session_state['page_selection'] = 'Inicio'
 
-# Sincronizar índice del menú con el estado
-opts = ["Inicio", "Candidatos", "Planes de Gobierno", "Indicadores Nacionales", "Participación Ciudadana", "Fuente de Datos"]
-default_idx = opts.index(st.session_state['page_selection']) if st.session_state['page_selection'] in opts else 0
+# Simular sincronización sin callback
+def update_selection(sel):
+    st.session_state['page_selection'] = sel
+
+# Calcular índice
+options = ["Inicio", "Candidatos", "Planes de Gobierno", "Indicadores Nacionales", "Participación Ciudadana", "Fuente de Datos"]
+try:
+    idx = options.index(st.session_state['page_selection'])
+except:
+    idx = 0
 
 with st.sidebar:
     selected = option_menu(
         menu_title=None,
-        options=opts,
+        options=options,
         icons=["house-door-fill", "people-fill", "file-text-fill", "bar-chart-fill", "chat-text-fill", "database-fill"],
-        default_index=default_idx,
+        default_index=idx,
         styles={
             "container": {"padding": "0!important", "background-color": "#ffffff"},
             "icon": {"color": "#64748B", "font-size": "16px"}, 
@@ -567,15 +575,16 @@ with st.sidebar:
             "nav-link-selected": {"background-color": "#EFF6FF", "color": "#2563EB", "font-weight": "600", "border-left": "3px solid #2563EB"}
         }
     )
-    st.markdown("---")
-    st.caption("© 2026 Monitor Electoral")
     
-    # Actualizar estado si el usuario cambia manualmente el menú
+    # Actualizar estado SOLO si cambió la selección visualmente
     if selected != st.session_state['page_selection']:
         st.session_state['page_selection'] = selected
         st.rerun()
 
-# Enrutador
+    st.markdown("---")
+    st.caption("© 2026 Monitor Electoral")
+
+# Router basado en estado
 if st.session_state['page_selection'] == "Inicio": view_inicio()
 elif st.session_state['page_selection'] == "Candidatos": view_candidatos()
 elif st.session_state['page_selection'] == "Planes de Gobierno": view_planes()
