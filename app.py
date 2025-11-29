@@ -7,7 +7,7 @@ import numpy as np
 import os
 from streamlit_option_menu import option_menu
 
-# IMPORTAR DATOS EXTERNOS DE CANDIDATOS
+# IMPORTAR DATOS EXTERNOS
 try:
     from candidatos_data import obtener_data_candidatos
 except ImportError:
@@ -38,14 +38,28 @@ def local_css():
         footer {visibility: hidden;}
         header {visibility: hidden;}
         
+        /* --- CORRECCIÓN MENÚ LATERAL FIJO --- */
+        /* Forzar que el sidebar siempre esté abierto y ocultar botones de colapso */
         [data-testid="stSidebar"] {
             background-color: #FFFFFF;
             border-right: 1px solid #E2E8F0;
+            min-width: 300px !important;
+            max-width: 300px !important;
         }
-
-        h1 { font-weight: 800; color: #0F172A; font-size: 2rem; margin-bottom: 0.5rem; }
+        /* Ocultar el botón de cerrar (X) dentro del sidebar */
+        [data-testid="stSidebar"] button {
+            display: none;
+        }
+        /* Ocultar el botón de expandir (>) en la cabecera principal */
+        [data-testid="collapsedControl"] {
+            display: none;
+        }
+        
+        /* Títulos */
+        h1 { font-weight: 800; color: #0F172A; font-size: 2.2rem; margin-bottom: 0.5rem; }
         .intro-text { color: #64748B; font-size: 1rem; line-height: 1.6; margin-bottom: 2rem; }
 
+        /* KPI CARDS */
         .kpi-card {
             background-color: #FFFFFF; padding: 20px; border-radius: 12px;
             border: 1px solid #E2E8F0; box-shadow: 0 1px 3px rgba(0,0,0,0.05);
@@ -55,6 +69,7 @@ def local_css():
         .kpi-value { color: #0F172A; font-size: 1.5rem; font-weight: 700; }
         .kpi-subtitle { font-size: 0.75rem; color: #94A3B8; margin-top: 4px; font-weight: 400; }
 
+        /* TABLA DE CANDIDATOS (HOME) */
         .table-header { display: flex; padding: 12px 16px; border-bottom: 1px solid #F1F5F9; background-color: #FAFAF9; border-top-left-radius: 12px; border-top-right-radius: 12px; margin-top: 20px; }
         .col-header { font-size: 0.75rem; color: #64748B; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
         .candidate-row-clean { display: flex; align-items: center; padding: 16px; background-color: #FFFFFF; border-bottom: 1px solid #F1F5F9; transition: background 0.2s; }
@@ -64,6 +79,7 @@ def local_css():
         .cand-party { color: #64748B; font-size: 0.9rem; }
         .btn-link { color: #2563EB; font-weight: 600; font-size: 0.85rem; text-decoration: none; cursor: pointer; }
 
+        /* GRID CANDIDATOS */
         .cand-grid-card {
             background-color: #FFFFFF; padding: 24px; border-radius: 16px;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); border: 1px solid #F1F5F9;
@@ -73,81 +89,55 @@ def local_css():
         .cand-grid-btn { display: block; width: 100%; padding: 10px; margin-top: 15px; background-color: #EFF6FF; color: #2563EB; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 0.9rem; }
         .cand-grid-btn:hover { background-color: #DBEAFE; }
 
+        /* PROPUESTAS */
         .prop-card { background-color: #FFFFFF; padding: 20px; border-radius: 12px; border: 1px solid #F1F5F9; box-shadow: 0 2px 4px rgba(0,0,0,0.02); height: 100%; }
         .prop-badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; margin-bottom: 10px; background-color: #F1F5F9; color: #475569; }
 
+        /* RADIOGRAFÍA CARDS */
         .radio-card { background-color: #FFFFFF; padding: 24px; border-radius: 12px; border: 1px solid #E2E8F0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); margin-bottom: 20px; }
         .radio-title { font-size: 1rem; font-weight: 600; color: #0F172A; margin-bottom: 10px; }
         
+        /* EXTRAS */
         .video-card { background: white; border-radius: 12px; overflow: hidden; border: 1px solid #E2E8F0; margin-bottom: 20px; }
         .video-title { padding: 12px 16px; font-weight: 600; font-size: 0.95rem; color: #0F172A; border-bottom: 1px solid #F1F5F9; }
         .bottom-card { background: #FAFAFA; padding: 20px; border-radius: 8px; margin-top: 20px; }
         .bottom-title { font-weight: 700; font-size: 0.95rem; color: #0F172A; margin-bottom: 5px; }
         .bottom-desc { font-size: 0.85rem; color: #64748B; }
 
+        /* SIDEBAR HEADER */
         .sidebar-header { padding: 20px 10px 30px 10px; display: flex; align-items: center; }
         .sidebar-logo { width: 40px; height: 40px; background: #0F172A; border-radius: 50%; color: white; display: flex; justify-content: center; align-items: center; font-weight: bold; margin-right: 12px; }
         .sidebar-main-title { font-weight: 700; color: #0F172A; font-size: 15px; }
         .sidebar-subtitle { font-size: 12px; color: #64748B; }
+
     </style>
     """, unsafe_allow_html=True)
 
 local_css()
 
-# --- 2. GESTIÓN DE DATOS INTELIGENTE ---
-
-def smart_read_csv(filepath, expected_columns=None, keyword_search=None):
-    if not os.path.exists(filepath):
-        return pd.DataFrame()
-
-    df = pd.DataFrame()
-    
-    try:
-        df = pd.read_csv(filepath, header=None, engine='python')
-    except:
-        try:
-            df = pd.read_csv(filepath, header=None, encoding='latin-1', engine='python')
-        except:
-            return pd.DataFrame()
-
-    if expected_columns:
-        if df.shape[1] >= len(expected_columns):
-            df = df.iloc[:, :len(expected_columns)]
-            df.columns = expected_columns
-            value_col = expected_columns[-1] 
-            df[value_col] = pd.to_numeric(df[value_col], errors='coerce')
-            df = df.dropna(subset=[value_col])
-            return df
-    
-    if keyword_search:
-        try:
-            for i, row in df.head(20).iterrows():
-                if row.astype(str).str.contains(keyword_search, case=False).any():
-                    try: return pd.read_csv(filepath, header=i)
-                    except: return pd.read_csv(filepath, header=i, encoding='latin-1')
-        except:
-            pass
-
-    return df
-
+# --- 2. GESTIÓN DE DATOS ---
 @st.cache_data(ttl=3600)
 def load_data():
-    # --- A. DATOS BANCO MUNDIAL ---
+    # --- A. DATOS BANCO MUNDIAL (API EN VIVO) ---
     try:
-        indicators = {'NY.GDP.MKTP.KD.ZG': 'PIB', 'SL.UEM.TOTL.ZS': 'Desempleo', 
-                      'SI.POV.NAHC': 'Pobreza', 'SI.POV.GINI': 'Gini'}
+        indicators = {
+            'NY.GDP.MKTP.KD.ZG': 'PIB', 
+            'SL.UEM.TOTL.ZS': 'Desempleo', 
+            'SI.POV.NAHC': 'Pobreza',
+            'SI.POV.GINI': 'Gini'
+        }
         wb_data = wb.download(indicator=list(indicators.keys()), country=['PE'], start=2000, end=datetime.datetime.now().year)
         wb_data = wb_data.reset_index().rename(columns=indicators).sort_values('year')
         status = "✅ Online"
     except:
         wb_data = pd.DataFrame()
-        status = "⚠️ Offline"
+        status = "⚠️ Offline (WB)"
 
-    # --- B. DATOS CSV LOCALES ---
+    # --- B. DATOS ARCHIVOS CSV (CARPETA data/) ---
     current_dir = os.path.dirname(os.path.abspath(__file__))
     data_path = os.path.join(current_dir, 'data')
     
-    # Inicialización
+    # Inicializamos todos los dataframes vacíos
     df_anemia = pd.DataFrame()
     df_medicos = pd.DataFrame()
     df_inseguridad = pd.DataFrame()
@@ -162,92 +152,167 @@ def load_data():
     try:
         # 1. ANEMIA
         file_anemia = os.path.join(data_path, "anemia.csv")
-        df_anemia = smart_read_csv(file_anemia, keyword_search="Año")
-        if not df_anemia.empty and 'Anemia' in df_anemia.columns and 'Evaluados' in df_anemia.columns:
-             df_anemia = df_anemia.groupby('Año')[['Anemia', 'Evaluados']].sum().reset_index()
-             df_anemia['Porcentaje'] = (df_anemia['Anemia'] / df_anemia['Evaluados']) * 100
+        if os.path.exists(file_anemia):
+            try: df_anemia = pd.read_csv(file_anemia)
+            except: df_anemia = pd.read_csv(file_anemia, encoding='latin-1')
+            if 'Anemia' in df_anemia.columns and 'Evaluados' in df_anemia.columns:
+                 df_anemia = df_anemia.groupby('Año')[['Anemia', 'Evaluados']].sum().reset_index()
+                 df_anemia['Porcentaje'] = (df_anemia['Anemia'] / df_anemia['Evaluados']) * 100
 
         # 2. MÉDICOS
         file_medicos = os.path.join(data_path, "medicos.csv")
-        df_medicos = smart_read_csv(file_medicos, keyword_search="Departamento")
-        if not df_medicos.empty and 'Departamento' in df_medicos.columns:
-            df_medicos = df_medicos[df_medicos['Departamento'].str.contains('Total', case=False, na=False)]
-            if not df_medicos.empty:
-                df_medicos = df_medicos.melt(id_vars=['Departamento'], var_name='Año', value_name='Habitantes')
-                df_medicos['Año'] = pd.to_numeric(df_medicos['Año'], errors='coerce')
-                if df_medicos['Habitantes'].dtype == object:
-                    df_medicos['Habitantes'] = df_medicos['Habitantes'].astype(str).str.replace(' ', '', regex=False)
-                df_medicos['Habitantes'] = pd.to_numeric(df_medicos['Habitantes'], errors='coerce')
-                df_medicos = df_medicos.dropna(subset=['Año', 'Habitantes']).sort_values('Año')
+        if os.path.exists(file_medicos):
+            df_medicos_raw = None
+            try: 
+                temp = pd.read_csv(file_medicos, header=0)
+                if 'Departamento' in temp.columns: df_medicos_raw = temp
+            except: pass
+            
+            if df_medicos_raw is None:
+                try: 
+                    temp = pd.read_csv(file_medicos, header=4)
+                    if 'Departamento' in temp.columns: df_medicos_raw = temp
+                except: pass
 
+            if df_medicos_raw is not None:
+                df_medicos = df_medicos_raw[df_medicos_raw['Departamento'].str.contains('Total', case=False, na=False)]
+                if not df_medicos.empty:
+                    df_medicos = df_medicos.melt(id_vars=['Departamento'], var_name='Año', value_name='Habitantes')
+                    df_medicos['Año'] = pd.to_numeric(df_medicos['Año'], errors='coerce')
+                    if df_medicos['Habitantes'].dtype == object:
+                        df_medicos['Habitantes'] = df_medicos['Habitantes'].astype(str).str.replace(' ', '', regex=False)
+                    df_medicos['Habitantes'] = pd.to_numeric(df_medicos['Habitantes'], errors='coerce')
+                    df_medicos = df_medicos.dropna(subset=['Año', 'Habitantes']).sort_values('Año')
+        
         # 3. INSEGURIDAD
-        df_inseguridad = smart_read_csv(os.path.join(data_path, "inseguridad.csv"), keyword_search="DEPARTAMENTO")
+        file_inseguridad = os.path.join(data_path, "inseguridad.csv")
+        if os.path.exists(file_inseguridad):
+            try: df_inseguridad = pd.read_csv(file_inseguridad, header=1)
+            except: df_inseguridad = pd.read_csv(file_inseguridad, header=1, encoding='latin-1')
         
         # 4. VICTIMIZACIÓN
-        df_victimizacion = smart_read_csv(os.path.join(data_path, "victimizacion.csv"), keyword_search="AÑO")
+        file_victimizacion = os.path.join(data_path, "victimizacion.csv")
+        if os.path.exists(file_victimizacion):
+            try: df_victimizacion = pd.read_csv(file_victimizacion, header=1)
+            except: df_victimizacion = pd.read_csv(file_victimizacion, header=1, encoding='latin-1')
 
-        # 5. SERVICIOS 
-        df_servicios_basicos = smart_read_csv(os.path.join(data_path, "servicios_basicos.csv"), expected_columns=['Servicio', 'Porcentaje'])
-        
-        # 6. INTERNET QUINTILES
+        # 5. SERVICIOS BÁSICOS
+        file_servicios = os.path.join(data_path, "servicios_basicos.csv")
+        if os.path.exists(file_servicios):
+            try: 
+                df_servicios_basicos = pd.read_csv(file_servicios, header=1) 
+                if len(df_servicios_basicos.columns) >= 2:
+                    df_servicios_basicos = df_servicios_basicos.iloc[:, :2] 
+                    df_servicios_basicos.columns = ['Servicio', 'Porcentaje'] 
+            except: pass
+
+        # 6. INTERNET QUINTILES (NUEVO FORMATO RURAL/URBANA)
         file_internet = os.path.join(data_path, "internet_quintiles.csv")
         if os.path.exists(file_internet):
             try:
-                # Leer archivo directamente para manejar múltiples columnas de valor
-                df_temp = pd.read_csv(file_internet)
-                # Limpieza de nombres de columnas
-                df_temp.columns = df_temp.columns.str.strip()
+                # Leer con header=0 (según el último CSV que enviaste)
+                df_temp = pd.read_csv(file_internet, header=0)
+                df_temp.columns = df_temp.columns.str.strip() # Limpiar espacios
+                
                 if 'Quintil' in df_temp.columns:
-                    # Melt para graficar Rural vs Urbana
-                    df_internet_quintiles = df_temp.melt(id_vars=['Quintil'], 
-                                                       value_vars=['Rural', 'Urbana'], 
-                                                       var_name='Área', 
-                                                       value_name='Porcentaje')
+                    # Transformar para gráfico agrupado (Melt)
+                    # Asumimos que las otras columnas son Rural y Urbana (o similares)
+                    # Excluimos 'Quintil' para el melt
+                    value_vars = [c for c in df_temp.columns if c != 'Quintil']
+                    df_internet_quintiles = df_temp.melt(id_vars=['Quintil'], value_vars=value_vars, var_name='Área', value_name='Porcentaje')
             except: pass
-        
-        # 7. BOSQUES
-        df_bosques = smart_read_csv(os.path.join(data_path, "bosques.csv"), expected_columns=['Año', 'Hectareas'])
-        
-        # 8. CO2
-        df_co2 = smart_read_csv(os.path.join(data_path, "emisions_co2.csv"), expected_columns=['Año', 'Megatoneladas'])
-        
-        # 9. GOBERNANZA
-        df_gobernanza = smart_read_csv(os.path.join(data_path, "eficacia_gobierno.csv"), expected_columns=['Indicador', 'Puntaje'])
 
-        # 10. DEUDA PÚBLICA
-        df_deuda = smart_read_csv(os.path.join(data_path, "deuda_publica.csv"), expected_columns=['Año', 'Soles'])
+        # 7. BOSQUES
+        file_bosques = os.path.join(data_path, "bosques.csv")
+        if os.path.exists(file_bosques):
+            try: 
+                df_bosques = pd.read_csv(file_bosques, header=1)
+                if len(df_bosques.columns) >= 2:
+                    df_bosques = df_bosques.iloc[:, :2]
+                    df_bosques.columns = ['Año', 'Hectareas']
+            except: pass
+
+        # 8. CO2
+        file_co2 = os.path.join(data_path, "emisions_co2.csv")
+        if os.path.exists(file_co2):
+            try: 
+                df_co2 = pd.read_csv(file_co2, header=1)
+                if len(df_co2.columns) >= 2:
+                    df_co2 = df_co2.iloc[:, :2]
+                    df_co2.columns = ['Año', 'Megatoneladas']
+                    # Limpiar comas
+                    if df_co2['Megatoneladas'].dtype == object:
+                         df_co2['Megatoneladas'] = df_co2['Megatoneladas'].astype(str).str.replace(',', '').astype(float)
+            except: pass
+
+        # 9. GOBERNANZA
+        file_gob = os.path.join(data_path, "eficacia_gobierno.csv")
+        if os.path.exists(file_gob):
+            try: 
+                df_gobernanza = pd.read_csv(file_gob, header=1)
+                if len(df_gobernanza.columns) >= 2:
+                    df_gobernanza = df_gobernanza.iloc[:, :2]
+                    df_gobernanza.columns = ['Indicador', 'Puntaje'] # Se usará la lógica de tomar el último valor
+            except: pass
+
+        # 10. DEUDA PÚBLICA (NUEVO)
+        file_deuda = os.path.join(data_path, "deuda_publica.csv")
+        if os.path.exists(file_deuda):
+            try:
+                df_deuda = pd.read_csv(file_deuda, header=0) # Asumiendo header simple "Año,Soles"
+                if len(df_deuda.columns) >= 2:
+                    df_deuda.columns = ['Año', 'Soles']
+            except: pass
         
     except Exception as e:
         print(f"Error cargando CSVs: {e}")
 
     # --- C. DATOS MANUALES ---
-    df_edu_analfa = pd.DataFrame({'year': np.arange(2013, 2023), 'Tasa': [6.2, 6.0, 5.9, 5.9, 5.8, 5.6, 5.5, 5.5, 5.2, 5.1]})
-    df_edu_deficit = pd.DataFrame({'Año': [2016, 2018, 2020, 2022], 'Servicios': [1200, 1150, 1100, 1050]})
+    df_edu_analfa = pd.DataFrame({
+        'year': [2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022],
+        'Tasa': [6.2, 6.0, 5.9, 5.9, 5.8, 5.6, 5.5, 5.5, 5.2, 5.1]
+    })
+    df_edu_deficit = pd.DataFrame({
+        'Año': [2016, 2018, 2020, 2022],
+        'Servicios': [1200, 1150, 1100, 1050]
+    })
 
     # --- D. CANDIDATOS ---
     try:
         df_cand = obtener_data_candidatos()
-    except:
+    except Exception:
         df_cand = pd.DataFrame({'Nombre': [], 'Partido': [], 'Foto': []})
 
     df_prop = pd.DataFrame({
         'Candidato': ['Keiko Fujimori', 'Rafael López Aliaga', 'César Acuña', 'Hernando de Soto', 'Susel Paredes'],
         'Eje': ['Economía', 'Seguridad', 'Educación', 'Economía', 'Derechos Civiles'],
         'Subtema': ['Plan Rescate 2026', 'Plan Bukele', 'Plata como Cancha para Educar', 'Capitalismo Popular', 'Unión Civil'],
-        'Texto': ['Shock de inversiones.', 'Cárceles de alta seguridad.', '6% PBI educación.', 'Titulación masiva.', 'Unión civil ya.'],
+        'Texto': [
+            'Propuesta de shock de inversiones y desbloqueo minero inmediato.',
+            'Creación de cárceles de máxima seguridad en zonas aisladas.',
+            'Inversión del 6% del PBI en infraestructura educativa universitaria.',
+            'Titulación masiva de propiedades informales para acceso a crédito.',
+            'Reconocimiento legal de uniones de hecho para parejas del mismo sexo.'
+        ],
         'Tipo': ['Decreto', 'Infraestructura', 'Ley', 'Programa', 'Ley']
     })
 
     return df_cand, df_prop, wb_data, df_anemia, df_medicos, df_inseguridad, df_victimizacion, df_edu_analfa, df_edu_deficit, df_servicios_basicos, df_internet_quintiles, df_bosques, df_co2, df_gobernanza, df_deuda, status
 
-# Cargar todo
+# Desempaquetar todas las variables
 df_cand, df_prop, df_wb, df_anemia, df_medicos, df_inseguridad, df_victimizacion, df_edu_analfa, df_edu_deficit, df_servicios, df_internet, df_bosques, df_co2, df_gob, df_deuda, status_msg = load_data()
 
 # --- 3. COMPONENTES VISUALES ---
 
 def kpi_box(label, value, subtitle=None):
-    sub = f'<div class="kpi-subtitle">{subtitle}</div>' if subtitle else ''
-    st.markdown(f'<div class="kpi-card"><div class="kpi-label">{label}</div><div class="kpi-value">{value}</div>{sub}</div>', unsafe_allow_html=True)
+    subtitle_html = f'<div class="kpi-subtitle">{subtitle}</div>' if subtitle else ''
+    st.markdown(f"""
+    <div class="kpi-card">
+        <div class="kpi-label">{label}</div>
+        <div class="kpi-value">{value}</div>
+        {subtitle_html}
+    </div>
+    """, unsafe_allow_html=True)
 
 def render_candidate_table_row(img, name, party):
     st.markdown(f"""
@@ -268,7 +333,12 @@ def render_candidate_table_row(img, name, party):
     """, unsafe_allow_html=True)
 
 def render_bottom_card(title, desc):
-    st.markdown(f'<div class="bottom-card"><div class="bottom-title">{title}</div><div class="bottom-desc">{desc}</div></div>', unsafe_allow_html=True)
+    st.markdown(f"""
+    <div class="bottom-card">
+        <div class="bottom-title">{title}</div>
+        <div class="bottom-desc">{desc}</div>
+    </div>
+    """, unsafe_allow_html=True)
 
 def render_section_header(title, subtitle):
     st.markdown(f"## {title}")
@@ -283,7 +353,7 @@ def render_proposal_card(subtema, tipo, texto):
     </div>
     """, unsafe_allow_html=True)
 
-# --- NUEVO HELPER: GRÁFICO CON ZOOM INTELIGENTE (5 AÑOS) ---
+# --- HELPER: GRÁFICO CON ZOOM INTELIGENTE (5 AÑOS) ---
 def plot_zoom_chart(df, x_col, y_col, color, chart_type='line'):
     if df.empty: return None
     
@@ -327,42 +397,63 @@ def view_inicio():
     c1, c2, c3 = st.columns(3)
     with c1: kpi_box("Enlaces Oficiales", "JNE, ONPE")
     with c2: kpi_box("Partidos en Carrera", f"{len(df_cand)}")
-    with c3: kpi_box("Días para la elección", f"{days_left}", "12 de Abril, 2026")
+    with c3: kpi_box("Días para la elección", f"{days_left}", "12 de Abril, 2026") 
     
-    st.markdown("<br>### Candidatos (Vista Previa)", unsafe_allow_html=True)
-    st.markdown("""<div class="table-header"><div style="width: 50px; margin-right: 15px;"></div><div class="col-header" style="width: 30%;">Candidato</div><div class="col-header" style="width: 50%;">Partido Político</div></div>""", unsafe_allow_html=True)
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    st.markdown("### Candidatos Presidenciales (Vista Previa)")
+    st.markdown("""
+    <div class="table-header">
+        <div style="width: 50px; margin-right: 15px;"></div>
+        <div class="col-header" style="width: 30%;">Candidato</div>
+        <div class="col-header" style="width: 50%;">Partido Político</div>
+        <div class="col-header" style="width: 20%; text-align: right;"></div>
+    </div>
+    """, unsafe_allow_html=True)
+    
     st.markdown('<div style="background: white; border: 1px solid #E2E8F0; border-top: none; border-bottom-left-radius: 12px; border-bottom-right-radius: 12px;">', unsafe_allow_html=True)
-    for _, row in df_cand.head(3).iterrows():
+    for _, row in df_cand.head(5).iterrows():
         render_candidate_table_row(row['Foto'], row['Nombre'], row['Partido'])
     st.markdown('</div>', unsafe_allow_html=True)
 
-    st.markdown("<br>### Recursos", unsafe_allow_html=True)
-    c1, c2 = st.columns(2)
-    with c1: 
-        st.markdown('<div class="video-card"><div class="video-title">🗳️ Cómo votar</div>', unsafe_allow_html=True)
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    st.markdown("### Biblioteca de Videos")
+    col_vid1, col_vid2 = st.columns(2)
+    with col_vid1:
+        st.markdown('<div class="video-card">', unsafe_allow_html=True)
+        st.markdown('<div class="video-title">🗳️ Cédula de votación y cómo votar</div>', unsafe_allow_html=True)
         st.video("https://www.youtube.com/watch?v=cJ5UuJJRfNQ")
         st.markdown('</div>', unsafe_allow_html=True)
-    with c2: 
-        st.markdown('<div class="video-card"><div class="video-title">🚫 Fake News</div>', unsafe_allow_html=True)
+    with col_vid2:
+        st.markdown('<div class="video-card">', unsafe_allow_html=True)
+        st.markdown('<div class="video-title">🚫 #EleccionesSinFake | 6 recomendaciones</div>', unsafe_allow_html=True)
         st.video("https://www.youtube.com/watch?v=n44WJaYtZrs")
         st.markdown('</div>', unsafe_allow_html=True)
 
+    c_bottom1, c_bottom2 = st.columns(2)
+    with c_bottom1: render_bottom_card("Análisis de Propuestas Electorales", "Expertos debaten los planes de gobierno.")
+    with c_bottom2: render_bottom_card("¿Cómo funciona el Voto Electrónico?", "Una guía paso a paso para el elector.")
+
+
 def view_candidatos():
-    st.markdown("## Directorio de Candidatos")
+    render_section_header("Candidatos", "Directorio completo de aspirantes a la presidencia.")
     cols = st.columns(3)
     for idx, row in df_cand.iterrows():
-        with cols[idx % 3]:
+        with cols[idx % 3]: 
             st.markdown(f"""
             <div class="cand-grid-card">
-                <img src="{row['Foto']}" style="width:80px; height:80px; border-radius:50%; margin-bottom:15px; object-fit:cover;">
-                <h4 style="margin:0; color:#0F172A;">{row['Nombre']}</h4>
-                <p style="color:#64748B; font-size:0.9rem;">{row['Partido']}</p>
-                <span style="font-size:0.8rem; color:#2563EB;">{row.get('Estado','')}</span>
+                <img src="{row['Foto']}" style="width: 80px; height: 80px; border-radius: 50%; margin-bottom: 15px; object-fit: cover;">
+                <h4 style="margin:0; font-size:1.1rem; color: #0F172A; font-weight: 700;">{row['Nombre']}</h4>
+                <p style="color: #64748B; font-size:0.9rem; margin-bottom: 15px;">{row['Partido']}</p>
+                <div style="font-size:0.8rem; color:#2563EB; margin-bottom:10px;">{row.get('Estado', '')}</div>
+                <a href="#" class="cand-grid-btn">Ver Plan de Gobierno</a>
             </div>
             """, unsafe_allow_html=True)
 
 def view_planes():
-    st.markdown("## Comparador de Planes")
+    render_section_header("Planes de Gobierno", "Comparador inteligente de propuestas electorales.")
+    
     with st.container():
         st.markdown('<div style="background:white; padding:20px; border-radius:12px; border:1px solid #E2E8F0; margin-bottom:20px;">', unsafe_allow_html=True)
         c1, c2, c3 = st.columns(3)
@@ -370,145 +461,176 @@ def view_planes():
         with c2: cand_b = st.selectbox("Candidato B", df_prop['Candidato'].unique(), index=1)
         with c3: eje = st.selectbox("Eje Temático", df_prop['Eje'].unique())
         st.markdown('</div>', unsafe_allow_html=True)
-    
+        
     col_a, col_b = st.columns(2)
+    
     with col_a:
         st.markdown(f"### {cand_a}")
         prop_a = df_prop[(df_prop['Candidato'] == cand_a) & (df_prop['Eje'] == eje)]
-        if not prop_a.empty: render_proposal_card(prop_a.iloc[0]['Subtema'], prop_a.iloc[0]['Tipo'], prop_a.iloc[0]['Texto'])
-        else: st.warning("Sin propuestas")
+        if not prop_a.empty:
+            row = prop_a.iloc[0]
+            render_proposal_card(row['Subtema'], row['Tipo'], row['Texto'])
+        else:
+            st.warning("Sin propuestas en este eje.")
+
     with col_b:
         st.markdown(f"### {cand_b}")
         prop_b = df_prop[(df_prop['Candidato'] == cand_b) & (df_prop['Eje'] == eje)]
-        if not prop_b.empty: render_proposal_card(prop_b.iloc[0]['Subtema'], prop_b.iloc[0]['Tipo'], prop_b.iloc[0]['Texto'])
-        else: st.warning("Sin propuestas")
+        if not prop_b.empty:
+            row = prop_b.iloc[0]
+            render_proposal_card(row['Subtema'], row['Tipo'], row['Texto'])
+        else:
+            st.warning("Sin propuestas en este eje.")
+
 
 def view_indicadores():
     st.markdown("<h1>Radiografía del Perú</h1>", unsafe_allow_html=True)
     st.markdown("<p class='intro-text'>Datos oficiales clave para comprender el estado actual del país.</p>", unsafe_allow_html=True)
     
-    tabs = st.tabs(["Economía", "Social", "Educación", "Salud", "Seguridad", "Infraestructura", "Ambiente", "Gobernanza"])
+    tabs = st.tabs([
+        "1. Economía", "2. Pobreza y Social", "3. Educación", 
+        "4. Salud", "5. Seguridad", "6. Infraestructura", 
+        "7. Ambiente", "8. Gobernanza"
+    ])
     
-    with tabs[0]: # Economía
+    # 1. ECONOMÍA
+    with tabs[0]: 
         c1, c2 = st.columns(2)
         with c1:
             st.markdown('<div class="radio-card"><div class="radio-title">Crecimiento del PBI (% anual)</div>', unsafe_allow_html=True)
-            if not df_wb.empty: 
-                # Gráfico con zoom
-                fig = plot_zoom_chart(df_wb, 'year', 'PIB', '#2563EB', 'line')
-                if fig:
-                    fig.add_hline(y=0, line_dash="dash", line_color="gray")
-                    st.plotly_chart(fig, use_container_width=True)
+            if not df_wb.empty:
+                # Gráfico con zoom 5 años
+                st.plotly_chart(plot_zoom_chart(df_wb, 'year', 'PIB', '#2563EB', 'line'), use_container_width=True)
             st.markdown('</div>', unsafe_allow_html=True)
         with c2:
-            st.markdown('<div class="radio-card"><div class="radio-title">Desempleo Total (%)</div>', unsafe_allow_html=True)
-            if not df_wb.empty: 
+            st.markdown('<div class="radio-card"><div class="radio-title">Desempleo Total (% fuerza laboral)</div>', unsafe_allow_html=True)
+            if not df_wb.empty:
+                # Gráfico con zoom 5 años
                 st.plotly_chart(plot_zoom_chart(df_wb, 'year', 'Desempleo', '#3B82F6', 'bar'), use_container_width=True)
             st.markdown('</div>', unsafe_allow_html=True)
+        st.caption("Fuente: Banco Mundial (API)")
 
-    with tabs[1]: # Social
+    # 2. POBREZA
+    with tabs[1]:
         c1, c2 = st.columns(2)
         with c1:
-            st.markdown('<div class="radio-card"><div class="radio-title">Pobreza Monetaria (%)</div>', unsafe_allow_html=True)
-            if not df_wb.empty and 'Pobreza' in df_wb.columns: 
+            st.markdown('<div class="radio-card"><div class="radio-title">Pobreza Monetaria Nacional (%)</div>', unsafe_allow_html=True)
+            if not df_wb.empty and 'Pobreza' in df_wb.columns:
                 st.plotly_chart(plot_zoom_chart(df_wb.dropna(subset=['Pobreza']), 'year', 'Pobreza', '#EF4444', 'line'), use_container_width=True)
             st.markdown('</div>', unsafe_allow_html=True)
         with c2:
-            st.markdown('<div class="radio-card"><div class="radio-title">Desigualdad (Gini)</div>', unsafe_allow_html=True)
-            if not df_wb.empty and 'Gini' in df_wb.columns: 
+            st.markdown('<div class="radio-card"><div class="radio-title">Índice de Gini (Desigualdad)</div>', unsafe_allow_html=True)
+            if not df_wb.empty and 'Gini' in df_wb.columns:
                 st.plotly_chart(plot_zoom_chart(df_wb.dropna(subset=['Gini']), 'year', 'Gini', '#8B5CF6', 'line'), use_container_width=True)
             st.markdown('</div>', unsafe_allow_html=True)
 
-    with tabs[2]: # Educación
+    # 3. EDUCACIÓN
+    with tabs[2]:
         c1, c2 = st.columns(2)
         with c1:
-            st.markdown('<div class="radio-card"><div class="radio-title">Analfabetismo (15+ años)</div>', unsafe_allow_html=True)
-            if not df_edu_analfa.empty: st.plotly_chart(px.line(df_edu_analfa, x='year', y='Tasa', template='plotly_white').update_traces(line_color='#F59E0B'), use_container_width=True)
+            st.markdown('<div class="radio-card"><div class="radio-title">Tasa de Analfabetismo (15+ años)</div>', unsafe_allow_html=True)
+            if not df_edu_analfa.empty:
+                st.plotly_chart(plot_zoom_chart(df_edu_analfa, 'year', 'Tasa', '#F59E0B', 'line'), use_container_width=True)
             st.markdown('</div>', unsafe_allow_html=True)
         with c2:
             st.markdown('<div class="radio-card"><div class="radio-title">Déficit Servicios Sec. Rural</div>', unsafe_allow_html=True)
-            if not df_edu_deficit.empty: st.plotly_chart(px.bar(df_edu_deficit, x='Año', y='Servicios', template='plotly_white').update_traces(marker_color='#F59E0B'), use_container_width=True)
+            if not df_edu_deficit.empty:
+                # Barras simples (son pocos datos)
+                fig = px.bar(df_edu_deficit, x='Año', y='Servicios', template='plotly_white')
+                fig.update_traces(marker_color='#F59E0B')
+                st.plotly_chart(fig, use_container_width=True)
             st.markdown('</div>', unsafe_allow_html=True)
+        st.caption("Fuente: ESCALE - MINEDU")
 
-    with tabs[3]: # Salud
+    # 4. SALUD
+    with tabs[3]:
         c1, c2 = st.columns(2)
         with c1:
             st.markdown('<div class="radio-card"><div class="radio-title">Anemia Infantil (%)</div>', unsafe_allow_html=True)
-            if not df_anemia.empty: st.plotly_chart(px.line(df_anemia, x='Año', y='Porcentaje', template='plotly_white').update_traces(line_color='#DC2626'), use_container_width=True)
+            if not df_anemia.empty:
+                st.plotly_chart(plot_zoom_chart(df_anemia, 'Año', 'Porcentaje', '#DC2626', 'line'), use_container_width=True)
             else: st.info("Datos de anemia no disponibles.")
             st.markdown('</div>', unsafe_allow_html=True)
         with c2:
             st.markdown('<div class="radio-card"><div class="radio-title">Habitantes por Médico</div>', unsafe_allow_html=True)
-            if not df_medicos.empty: st.plotly_chart(px.line(df_medicos, x='Año', y='Habitantes', template='plotly_white').update_traces(line_color='#059669'), use_container_width=True)
+            if not df_medicos.empty:
+                st.plotly_chart(plot_zoom_chart(df_medicos, 'Año', 'Habitantes', '#059669', 'line'), use_container_width=True)
             else: st.info("Datos de médicos no disponibles.")
             st.markdown('</div>', unsafe_allow_html=True)
 
-    with tabs[4]: # Seguridad
+    # 5. SEGURIDAD
+    with tabs[4]:
         c1, c2 = st.columns(2)
         with c1:
             st.markdown('<div class="radio-card"><div class="radio-title">Percepción de Inseguridad (2024)</div>', unsafe_allow_html=True)
             if not df_inseguridad.empty and 'DEPARTAMENTO' in df_inseguridad.columns:
+                # Barras horizontales ranking
                 st.plotly_chart(px.bar(df_inseguridad.sort_values('VALOR', ascending=False).head(7), x='VALOR', y='DEPARTAMENTO', orientation='h', template='plotly_white').update_traces(marker_color='#374151'), use_container_width=True)
             else: st.info("Datos de inseguridad no disponibles.")
             st.markdown('</div>', unsafe_allow_html=True)
         with c2:
             st.markdown('<div class="radio-card"><div class="radio-title">Victimización Nacional</div>', unsafe_allow_html=True)
-            if not df_victimizacion.empty: 
+            if not df_victimizacion.empty:
                 st.plotly_chart(plot_zoom_chart(df_victimizacion, 'AÑO', 'VALOR', '#9F1239', 'line'), use_container_width=True)
             else: st.info("Datos de victimización no disponibles.")
             st.markdown('</div>', unsafe_allow_html=True)
 
-    with tabs[5]: # Infraestructura
+    # 6. INFRAESTRUCTURA
+    with tabs[5]:
         c1, c2 = st.columns(2)
         with c1:
             st.markdown('<div class="radio-card"><div class="radio-title">Servicios Básicos (Vivienda)</div>', unsafe_allow_html=True)
-            if not df_servicios.empty: st.plotly_chart(px.bar(df_servicios, x='Porcentaje', y='Servicio', orientation='h', template='plotly_white').update_traces(marker_color='#0EA5E9'), use_container_width=True)
+            if not df_servicios.empty:
+                # Barras horizontales
+                st.plotly_chart(px.bar(df_servicios, x='Porcentaje', y='Servicio', orientation='h', template='plotly_white').update_traces(marker_color='#0EA5E9'), use_container_width=True)
             else: st.info("Datos de servicios no disponibles.")
             st.markdown('</div>', unsafe_allow_html=True)
         with c2:
-            st.markdown('<div class="radio-card"><div class="radio-title">Internet por Quintil</div>', unsafe_allow_html=True)
-            if not df_internet.empty: 
-                # Gráfico nuevo: Barras agrupadas para Rural vs Urbana
+            st.markdown('<div class="radio-card"><div class="radio-title">Internet por Quintil y Área</div>', unsafe_allow_html=True)
+            if not df_internet.empty:
+                # Gráfico barras agrupadas (Rural/Urbana)
                 fig_net = px.bar(df_internet, x='Quintil', y='Porcentaje', color='Área', barmode='group', template='plotly_white')
                 st.plotly_chart(fig_net, use_container_width=True)
             else: st.info("Datos de internet no disponibles.")
             st.markdown('</div>', unsafe_allow_html=True)
 
-    with tabs[6]: # Ambiente
+    # 7. AMBIENTE
+    with tabs[6]:
         c1, c2 = st.columns(2)
         with c1:
             st.markdown('<div class="radio-card"><div class="radio-title">Pérdida de Bosques</div>', unsafe_allow_html=True)
-            if not df_bosques.empty: 
+            if not df_bosques.empty:
                 st.plotly_chart(plot_zoom_chart(df_bosques, 'Año', 'Hectareas', '#166534', 'bar'), use_container_width=True)
             else: st.info("Datos de bosques no disponibles.")
             st.markdown('</div>', unsafe_allow_html=True)
         with c2:
             st.markdown('<div class="radio-card"><div class="radio-title">Emisiones de CO2</div>', unsafe_allow_html=True)
-            if not df_co2.empty: 
+            if not df_co2.empty:
                 fig_co2 = plot_zoom_chart(df_co2, 'Año', 'Megatoneladas', '#64748B', 'line')
-                if fig_co2:
-                    fig_co2.update_yaxes(fixedrange=False)
-                    st.plotly_chart(fig_co2, use_container_width=True)
+                fig_co2.update_yaxes(fixedrange=False)
+                st.plotly_chart(fig_co2, use_container_width=True)
             else: st.info("Datos de CO2 no disponibles.")
             st.markdown('</div>', unsafe_allow_html=True)
 
-    with tabs[7]: # Gobernanza
+    # 8. GOBERNANZA
+    with tabs[7]:
         c1, c2 = st.columns(2)
         with c1:
             st.markdown('<div class="radio-card"><div class="radio-title">Indicadores de Gobernanza (0-100)</div>', unsafe_allow_html=True)
-            if not df_gob.empty: 
+            if not df_gob.empty:
+                # Barras ranking 0-100
                 fig_gob = px.bar(df_gob, x='Puntaje', y='Indicador', orientation='h', template='plotly_white')
                 fig_gob.update_traces(marker_color='#7C3AED')
-                fig_gob.update_xaxes(range=[0, 25]) # Rango reducido solicitado
+                fig_gob.update_xaxes(range=[0, 25]) # Recortado a 25 según solicitud
                 fig_gob.update_layout(height=250)
                 st.plotly_chart(fig_gob, use_container_width=True)
             else: st.info("Datos de gobernanza no disponibles.")
             st.markdown('</div>', unsafe_allow_html=True)
         with c2:
             st.markdown('<div class="radio-card"><div class="radio-title">Deuda Pública</div>', unsafe_allow_html=True)
-            if not df_deuda.empty: 
+            if not df_deuda.empty:
                 st.plotly_chart(plot_zoom_chart(df_deuda, 'Año', 'Soles', '#F59E0B', 'line'), use_container_width=True)
-            else: st.info("Sube 'deuda_publica.csv' a data/")
+            else: st.info("Datos de deuda no disponibles.")
             st.markdown('</div>', unsafe_allow_html=True)
 
 def view_participacion():
