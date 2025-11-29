@@ -121,7 +121,7 @@ def load_data():
         wb_data = pd.DataFrame()
         status = "⚠️ Offline (WB)"
 
-    # --- B. DATOS ARCHIVOS CSV (CARPETA data/) ---
+    # --- B. DATOS ARCHIVOS CSV LOCALES ---
     current_dir = os.path.dirname(os.path.abspath(__file__))
     data_path = os.path.join(current_dir, 'data')
     
@@ -130,33 +130,28 @@ def load_data():
     df_medicos = pd.DataFrame()
     df_inseguridad = pd.DataFrame()
     df_victimizacion = pd.DataFrame()
-    df_servicios_basicos = pd.DataFrame() # Nuevo
-    df_internet_quintiles = pd.DataFrame() # Nuevo
-    df_bosques = pd.DataFrame() # Nuevo
-    df_co2 = pd.DataFrame() # Nuevo
-    df_gobernanza = pd.DataFrame() # Nuevo
+    df_servicios_basicos = pd.DataFrame()
+    df_internet_quintiles = pd.DataFrame()
+    df_bosques = pd.DataFrame()
+    df_co2 = pd.DataFrame()
+    df_gobernanza = pd.DataFrame()
 
     try:
-        # 1. ANEMIA
+        # 1. ANEMIA (anemia.csv)
+        # Formato: Limpio, header en fila 0
         file_anemia = os.path.join(data_path, "anemia.csv")
         if os.path.exists(file_anemia):
-            try: df_anemia = pd.read_csv(file_anemia)
-            except: df_anemia = pd.read_csv(file_anemia, encoding='latin-1')
+            df_anemia = pd.read_csv(file_anemia)
             if 'Anemia' in df_anemia.columns and 'Evaluados' in df_anemia.columns:
                  df_anemia = df_anemia.groupby('Año')[['Anemia', 'Evaluados']].sum().reset_index()
                  df_anemia['Porcentaje'] = (df_anemia['Anemia'] / df_anemia['Evaluados']) * 100
 
-        # 2. MÉDICOS
+        # 2. MÉDICOS (medicos.csv)
+        # Formato: 4 líneas de título basura. Header real en fila 5.
         file_medicos = os.path.join(data_path, "medicos.csv")
         if os.path.exists(file_medicos):
-            df_medicos_raw = None
-            try: df_medicos_raw = pd.read_csv(file_medicos, header=4)
-            except: pass
-            if df_medicos_raw is None:
-                try: df_medicos_raw = pd.read_csv(file_medicos, header=4, encoding='latin-1')
-                except: pass
-            
-            if df_medicos_raw is not None and 'Departamento' in df_medicos_raw.columns:
+            df_medicos_raw = pd.read_csv(file_medicos, header=4) # Salta 4 líneas
+            if 'Departamento' in df_medicos_raw.columns:
                 df_medicos = df_medicos_raw[df_medicos_raw['Departamento'].str.contains('Total', case=False, na=False)]
                 if not df_medicos.empty:
                     df_medicos = df_medicos.melt(id_vars=['Departamento'], var_name='Año', value_name='Habitantes')
@@ -164,70 +159,67 @@ def load_data():
                     df_medicos['Habitantes'] = pd.to_numeric(df_medicos['Habitantes'], errors='coerce')
                     df_medicos = df_medicos.dropna(subset=['Año', 'Habitantes']).sort_values('Año')
         
-        # 3. INSEGURIDAD
+        # 3. INSEGURIDAD (inseguridad.csv)
+        # Formato: 1 línea de título basura. Header real en fila 2.
         file_inseguridad = os.path.join(data_path, "inseguridad.csv")
         if os.path.exists(file_inseguridad):
-            try: df_inseguridad = pd.read_csv(file_inseguridad, header=1)
-            except: df_inseguridad = pd.read_csv(file_inseguridad, header=1, encoding='latin-1')
+            df_inseguridad = pd.read_csv(file_inseguridad, header=1) # Salta 1 línea
         
-        # 4. VICTIMIZACIÓN
+        # 4. VICTIMIZACIÓN (victimizacion.csv)
+        # Formato: 1 línea de título basura. Header real en fila 2.
         file_victimizacion = os.path.join(data_path, "victimizacion.csv")
         if os.path.exists(file_victimizacion):
-            try: df_victimizacion = pd.read_csv(file_victimizacion, header=1)
-            except: df_victimizacion = pd.read_csv(file_victimizacion, header=1, encoding='latin-1')
+            df_victimizacion = pd.read_csv(file_victimizacion, header=1) # Salta 1 línea
 
-        # --- NUEVOS ARCHIVOS (SECCIONES 6, 7, 8) CON CARGA ROBUSTA ---
-        # El truco: Leer header=1 para saltar el título, y forzar nombres de columnas
-        
-        # 5. SERVICIOS BÁSICOS
+        # 5. SERVICIOS BÁSICOS (servicios_basicos.csv)
+        # Formato: Limpio, header en fila 0. Columnas: "Servicios básicos_(EH)", "value"
         file_servicios = os.path.join(data_path, "servicios_basicos.csv")
         if os.path.exists(file_servicios):
-            try: 
-                df_servicios_basicos = pd.read_csv(file_servicios, header=1) # Saltar título
-                if len(df_servicios_basicos.columns) >= 2:
-                    df_servicios_basicos = df_servicios_basicos.iloc[:, :2] # Solo 2 columnas
-                    df_servicios_basicos.columns = ['Servicio', 'Porcentaje'] # Renombrar a lo seguro
-            except: pass
+            df_servicios_basicos = pd.read_csv(file_servicios)
+            # Renombrar para que coincida con el gráfico
+            df_servicios_basicos = df_servicios_basicos.rename(columns={
+                'Servicios básicos_(EH)': 'Servicio',
+                'value': 'Porcentaje'
+            })
 
-        # 6. INTERNET QUINTILES
+        # 6. INTERNET QUINTILES (internet_quintiles.csv)
+        # Formato: 1 línea de título basura. Header real en fila 2.
         file_internet = os.path.join(data_path, "internet_quintiles.csv")
         if os.path.exists(file_internet):
-            try: 
-                df_internet_quintiles = pd.read_csv(file_internet, header=1)
-                if len(df_internet_quintiles.columns) >= 2:
-                    df_internet_quintiles = df_internet_quintiles.iloc[:, :2]
-                    df_internet_quintiles.columns = ['Quintil', 'Porcentaje']
-            except: pass
+            df_internet_quintiles = pd.read_csv(file_internet, header=1) # Salta 1 línea
+            # Renombrar para el gráfico
+            df_internet_quintiles = df_internet_quintiles.rename(columns={'value': 'Porcentaje'})
 
-        # 7. BOSQUES
+        # 7. BOSQUES (bosques.csv)
+        # Formato: 1 línea de título basura. Header real en fila 2.
         file_bosques = os.path.join(data_path, "bosques.csv")
         if os.path.exists(file_bosques):
-            try: 
-                df_bosques = pd.read_(file_bosques, header=1)
-                if len(df_bosques.columns) >= 2:
-                    df_bosques = df_bosques.iloc[:, :2]
-                    df_bosques.columns = ['Año', 'Hectareas']
-            except: pass
+            df_bosques = pd.read_csv(file_bosques, header=1) # Salta 1 línea
 
-        # 8. CO2
-        file_co2 = os.path.join(data_path, "emisiones_co2.csv")
+        # 8. CO2 (emisions_co2.csv)
+        # Formato: 1 línea de título basura. Header real en fila 2.
+        # Valores: Strings con comas ("58,403") -> Necesita limpieza
+        file_co2 = os.path.join(data_path, "emisions_co2.csv") # Ojo con el nombre "emisions"
         if os.path.exists(file_co2):
-            try: 
-                df_co2 = pd.read_csv(file_co2, header=1)
-                if len(df_co2.columns) >= 2:
-                    df_co2 = df_co2.iloc[:, :2]
-                    df_co2.columns = ['Año', 'Megatoneladas']
-            except: pass
+            df_co2 = pd.read_csv(file_co2, header=1) # Salta 1 línea
+            # Limpieza de datos (quitar comas y convertir a float)
+            if 'CO2' in df_co2.columns:
+                df_co2['Megatoneladas'] = df_co2['CO2'].astype(str).str.replace(',', '').astype(float)
 
-        # 9. GOBERNANZA
+        # 9. GOBERNANZA (eficacia_gobierno.csv)
+        # Formato: 1 línea de título basura. Header real en fila 2.
+        # Contenido: Serie temporal (Año, Puntuación). El gráfico esperaba Indicadores.
+        # ADAPTACIÓN: Usaremos el último valor de este CSV para mostrar el indicador "Eficacia"
         file_gob = os.path.join(data_path, "eficacia_gobierno.csv")
         if os.path.exists(file_gob):
-            try: 
-                df_gobernanza = pd.read_csv(file_gob, header=1)
-                if len(df_gobernanza.columns) >= 2:
-                    df_gobernanza = df_gobernanza.iloc[:, :2]
-                    df_gobernanza.columns = ['Indicador', 'Puntaje']
-            except: pass
+            df_gob_raw = pd.read_csv(file_gob, header=1) # Salta 1 línea
+            if not df_gob_raw.empty:
+                ultimo_valor = df_gob_raw.sort_values('Año').iloc[-1]['Puntuación']
+                # Creamos el dataframe que espera el gráfico
+                df_gobernanza = pd.DataFrame({
+                    'Indicador': ['Eficacia del Gobierno'],
+                    'Puntaje': [ultimo_valor]
+                })
         
     except Exception as e:
         print(f"Error cargando CSVs: {e}")
@@ -489,7 +481,7 @@ def view_indicadores():
                 st.plotly_chart(fig_edu, use_container_width=True)
             st.markdown('</div>', unsafe_allow_html=True)
         with c2:
-            st.markdown('<div class="radio-card"><div class="radio-title">Déficit Servicios Secundaria Rural</div>', unsafe_allow_html=True)
+            st.markdown('<div class="radio-card"><div class="radio-title">Déficit Servicios Sec. Rural</div>', unsafe_allow_html=True)
             if not df_edu_deficit.empty:
                 fig_def = px.bar(df_edu_deficit, x='Año', y='Servicios', template='plotly_white')
                 fig_def.update_traces(marker_color='#F59E0B')
@@ -501,20 +493,20 @@ def view_indicadores():
     with tabs[3]:
         c1, c2 = st.columns(2)
         with c1:
-            st.markdown('<div class="radio-card"><div class="radio-title">Anemia Infantil (6 a 35 meses)</div>', unsafe_allow_html=True)
+            st.markdown('<div class="radio-card"><div class="radio-title">Anemia Infantil (%)</div>', unsafe_allow_html=True)
             if not df_anemia.empty:
                 fig_anemia = px.line(df_anemia, x='Año', y='Porcentaje', template='plotly_white', markers=True)
                 fig_anemia.update_traces(line_color='#DC2626', line_width=3)
                 st.plotly_chart(fig_anemia, use_container_width=True)
-            else: st.info("Sube 'anemia.csv' a data/")
+            else: st.info("Datos de anemia no disponibles.")
             st.markdown('</div>', unsafe_allow_html=True)
         with c2:
-            st.markdown('<div class="radio-card"><div class="radio-title">Habitantes por Médico (Nacional)</div>', unsafe_allow_html=True)
+            st.markdown('<div class="radio-card"><div class="radio-title">Habitantes por Médico</div>', unsafe_allow_html=True)
             if not df_medicos.empty:
                 fig_med = px.line(df_medicos, x='Año', y='Habitantes', template='plotly_white', markers=True)
                 fig_med.update_traces(line_color='#059669', line_width=3)
                 st.plotly_chart(fig_med, use_container_width=True)
-            else: st.info("Sube 'medicos.csv' a data/")
+            else: st.info("Datos de médicos no disponibles.")
             st.markdown('</div>', unsafe_allow_html=True)
 
     # 5. SEGURIDAD
@@ -523,20 +515,13 @@ def view_indicadores():
         with c1:
             st.markdown('<div class="radio-card"><div class="radio-title">Percepción de Inseguridad (2024)</div>', unsafe_allow_html=True)
             if not df_inseguridad.empty and 'DEPARTAMENTO' in df_inseguridad.columns:
-                df_ins_top = df_inseguridad.sort_values('VALOR', ascending=False).head(7)
-                fig_ins = px.bar(df_ins_top, x='VALOR', y='DEPARTAMENTO', orientation='h', template='plotly_white')
-                fig_ins.update_traces(marker_color='#374151')
-                fig_ins.update_layout(yaxis=dict(autorange="reversed"))
-                st.plotly_chart(fig_ins, use_container_width=True)
-            else: st.info("Verificando 'inseguridad.csv' en data/...")
+                st.plotly_chart(px.bar(df_inseguridad.sort_values('VALOR', ascending=False).head(7), x='VALOR', y='DEPARTAMENTO', orientation='h', template='plotly_white').update_traces(marker_color='#374151'), use_container_width=True)
+            else: st.info("Datos de inseguridad no disponibles.")
             st.markdown('</div>', unsafe_allow_html=True)
         with c2:
-            st.markdown('<div class="radio-card"><div class="radio-title">Victimización Nacional (Histórico)</div>', unsafe_allow_html=True)
-            if not df_victimizacion.empty:
-                fig_vic = px.line(df_victimizacion, x='AÑO', y='VALOR', template='plotly_white', markers=True)
-                fig_vic.update_traces(line_color='#9F1239')
-                st.plotly_chart(fig_vic, use_container_width=True)
-            else: st.info("Verificando 'victimizacion.csv' en data/...")
+            st.markdown('<div class="radio-card"><div class="radio-title">Victimización Nacional</div>', unsafe_allow_html=True)
+            if not df_victimizacion.empty: st.plotly_chart(px.line(df_victimizacion, x='AÑO', y='VALOR', template='plotly_white').update_traces(line_color='#9F1239'), use_container_width=True)
+            else: st.info("Datos de victimización no disponibles.")
             st.markdown('</div>', unsafe_allow_html=True)
 
     # 6. INFRAESTRUCTURA
@@ -544,19 +529,13 @@ def view_indicadores():
         c1, c2 = st.columns(2)
         with c1:
             st.markdown('<div class="radio-card"><div class="radio-title">Servicios Básicos (Vivienda)</div>', unsafe_allow_html=True)
-            if not df_servicios.empty:
-                fig_serv = px.bar(df_servicios, x='Porcentaje', y='Servicio', orientation='h', template='plotly_white')
-                fig_serv.update_traces(marker_color='#0EA5E9')
-                st.plotly_chart(fig_serv, use_container_width=True)
-            else: st.info("Sube 'servicios_basicos.csv' a data/")
+            if not df_servicios.empty: st.plotly_chart(px.bar(df_servicios, x='Porcentaje', y='Servicio', orientation='h', template='plotly_white').update_traces(marker_color='#0EA5E9'), use_container_width=True)
+            else: st.info("Datos de servicios no disponibles.")
             st.markdown('</div>', unsafe_allow_html=True)
         with c2:
             st.markdown('<div class="radio-card"><div class="radio-title">Internet por Quintil</div>', unsafe_allow_html=True)
-            if not df_internet.empty:
-                fig_net = px.bar(df_internet, x='Quintil', y='Porcentaje', template='plotly_white')
-                fig_net.update_traces(marker_color='#6366F1')
-                st.plotly_chart(fig_net, use_container_width=True)
-            else: st.info("Sube 'internet_quintiles.csv' a data/")
+            if not df_internet.empty: st.plotly_chart(px.bar(df_internet, x='Quintil', y='Porcentaje', template='plotly_white').update_traces(marker_color='#6366F1'), use_container_width=True)
+            else: st.info("Datos de internet no disponibles.")
             st.markdown('</div>', unsafe_allow_html=True)
 
     # 7. AMBIENTE
@@ -564,30 +543,20 @@ def view_indicadores():
         c1, c2 = st.columns(2)
         with c1:
             st.markdown('<div class="radio-card"><div class="radio-title">Pérdida de Bosques (Ha)</div>', unsafe_allow_html=True)
-            if not df_bosques.empty:
-                fig_bosq = px.bar(df_bosques, x='Año', y='Hectareas', template='plotly_white')
-                fig_bosq.update_traces(marker_color='#166534')
-                st.plotly_chart(fig_bosq, use_container_width=True)
-            else: st.info("Sube 'bosques.csv' a data/")
+            if not df_bosques.empty: st.plotly_chart(px.bar(df_bosques, x='Año', y='Hectareas', template='plotly_white').update_traces(marker_color='#166534'), use_container_width=True)
+            else: st.info("Datos de bosques no disponibles.")
             st.markdown('</div>', unsafe_allow_html=True)
         with c2:
             st.markdown('<div class="radio-card"><div class="radio-title">Emisiones CO2 (Mt)</div>', unsafe_allow_html=True)
-            if not df_co2.empty:
-                fig_co2 = px.line(df_co2, x='Año', y='Megatoneladas', template='plotly_white', markers=True)
-                fig_co2.update_traces(line_color='#64748B')
-                st.plotly_chart(fig_co2, use_container_width=True)
-            else: st.info("Sube 'emisiones_co2.csv' a data/")
+            if not df_co2.empty: st.plotly_chart(px.line(df_co2, x='Año', y='Megatoneladas', template='plotly_white').update_traces(line_color='#64748B'), use_container_width=True)
+            else: st.info("Datos de CO2 no disponibles.")
             st.markdown('</div>', unsafe_allow_html=True)
 
     # 8. GOBERNANZA
     with tabs[7]:
         st.markdown('<div class="radio-card"><div class="radio-title">Indicadores de Gobernanza (0-100)</div>', unsafe_allow_html=True)
-        if not df_gob.empty:
-            fig_gob = px.bar(df_gob, x='Puntaje', y='Indicador', orientation='h', range_x=[0,100], template='plotly_white')
-            fig_gob.update_traces(marker_color='#7C3AED')
-            fig_gob.update_layout(height=300)
-            st.plotly_chart(fig_gob, use_container_width=True)
-        else: st.info("Sube 'eficacia_gobierno.csv' a data/")
+        if not df_gob.empty: st.plotly_chart(px.bar(df_gob, x='Puntaje', y='Indicador', orientation='h', range_x=[0,100], template='plotly_white').update_traces(marker_color='#7C3AED'), use_container_width=True)
+        else: st.info("Datos de gobernanza no disponibles.")
         st.markdown('</div>', unsafe_allow_html=True)
 
 def view_participacion():
