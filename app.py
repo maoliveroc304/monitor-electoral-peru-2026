@@ -18,7 +18,6 @@ try:
     from propuestas_data import obtener_data_propuestas
 except ImportError:
     def obtener_data_propuestas():
-        # Estructura vacía por si falla la carga
         return pd.DataFrame(columns=['Candidato', 'Eje', 'Subtema', 'Texto', 'Tipo'])
 
 # --- 1. CONFIGURACIÓN TÉCNICA ---
@@ -53,7 +52,6 @@ def local_css():
             width: 280px !important;
         }
         
-        /* Ocultar botón de colapsar */
         [data-testid="collapsedControl"] {
             display: none;
         }
@@ -86,7 +84,7 @@ def local_css():
         }
         .cand-grid-card:hover { transform: translateY(-3px); border-color: #3B82F6; }
         
-        /* BOTÓN PERSONALIZADO VER PLAN */
+        /* BOTONES VER PLAN */
         div[data-testid="stVerticalBlock"] > div > button {
             width: 100%;
             background-color: #EFF6FF;
@@ -126,18 +124,12 @@ local_css()
 # --- 2. GESTIÓN DE DATOS ---
 
 def smart_read_csv(filepath, expected_columns=None, keyword_search=None):
-    if not os.path.exists(filepath):
-        return pd.DataFrame()
-
+    if not os.path.exists(filepath): return pd.DataFrame()
     df = pd.DataFrame()
-    
-    try:
-        df = pd.read_csv(filepath, header=None, engine='python')
-    except:
-        try:
-            df = pd.read_csv(filepath, header=None, encoding='latin-1', engine='python')
-        except:
-            return pd.DataFrame()
+    try: df = pd.read_csv(filepath, header=None, engine='python')
+    except: 
+        try: df = pd.read_csv(filepath, header=None, encoding='latin-1', engine='python')
+        except: return pd.DataFrame()
 
     if expected_columns:
         if df.shape[1] >= len(expected_columns):
@@ -181,11 +173,11 @@ def load_data():
     df_medicos = pd.DataFrame()
     df_inseguridad = pd.DataFrame()
     df_victimizacion = pd.DataFrame()
-    df_servicios = pd.DataFrame() # Corregido
-    df_internet = pd.DataFrame()  # Corregido
+    df_servicios = pd.DataFrame() 
+    df_internet = pd.DataFrame()  
     df_bosques = pd.DataFrame() 
     df_co2 = pd.DataFrame() 
-    df_gob = pd.DataFrame()      # Corregido
+    df_gob = pd.DataFrame()      
     df_deuda = pd.DataFrame()
 
     try:
@@ -199,15 +191,14 @@ def load_data():
         # 2. MÉDICOS
         file_medicos = os.path.join(data_path, "medicos.csv")
         df_medicos = smart_read_csv(file_medicos, keyword_search="Departamento")
-        if not df_medicos.empty and 'Departamento' in df_medicos.columns:
+        if not df_medicos.empty:
             df_medicos = df_medicos[df_medicos['Departamento'].str.contains('Total', case=False, na=False)]
-            if not df_medicos.empty:
-                df_medicos = df_medicos.melt(id_vars=['Departamento'], var_name='Año', value_name='Habitantes')
-                df_medicos['Año'] = pd.to_numeric(df_medicos['Año'], errors='coerce')
-                if df_medicos['Habitantes'].dtype == object:
-                     df_medicos['Habitantes'] = df_medicos['Habitantes'].astype(str).str.replace(' ', '', regex=False)
-                df_medicos['Habitantes'] = pd.to_numeric(df_medicos['Habitantes'], errors='coerce')
-                df_medicos = df_medicos.dropna(subset=['Año', 'Habitantes']).sort_values('Año')
+            df_medicos = df_medicos.melt(id_vars=['Departamento'], var_name='Año', value_name='Habitantes')
+            df_medicos['Año'] = pd.to_numeric(df_medicos['Año'], errors='coerce')
+            if df_medicos['Habitantes'].dtype == object:
+                 df_medicos['Habitantes'] = df_medicos['Habitantes'].astype(str).str.replace(' ', '', regex=False)
+            df_medicos['Habitantes'] = pd.to_numeric(df_medicos['Habitantes'], errors='coerce')
+            df_medicos = df_medicos.dropna(subset=['Año', 'Habitantes']).sort_values('Año')
 
         # 3. INSEGURIDAD
         df_inseguridad = smart_read_csv(os.path.join(data_path, "inseguridad.csv"), keyword_search="DEPARTAMENTO")
@@ -257,7 +248,6 @@ def load_data():
 
     return df_cand, df_prop, wb_data, df_anemia, df_medicos, df_inseguridad, df_victimizacion, df_edu_analfa, df_edu_deficit, df_servicios, df_internet, df_bosques, df_co2, df_gob, df_deuda, status
 
-# Cargar todo
 df_cand, df_prop, df_wb, df_anemia, df_medicos, df_inseguridad, df_victimizacion, df_edu_analfa, df_edu_deficit, df_servicios, df_internet, df_bosques, df_co2, df_gob, df_deuda, status_msg = load_data()
 
 # --- 3. HELPERS ---
@@ -340,7 +330,7 @@ def view_inicio():
     with c3: kpi_box("Días para la elección", f"{days_left}", "12 de Abril, 2026")
     
     st.markdown("<br>", unsafe_allow_html=True)
-    st.subheader("Candidatos Presidenciales (Vista Previa)")
+    st.subheader("Candidatos (Vista Previa)")
     st.markdown("""<div class="table-header"><div style="width: 50px; margin-right: 15px;"></div><div class="col-header" style="width: 30%;">Candidato</div><div class="col-header" style="width: 50%;">Partido Político</div></div>""", unsafe_allow_html=True)
     st.markdown('<div style="background: white; border: 1px solid #E2E8F0; border-top: none; border-bottom-left-radius: 12px; border-bottom-right-radius: 12px;">', unsafe_allow_html=True)
     for _, row in df_cand.head(3).iterrows():
@@ -546,36 +536,47 @@ def view_participacion():
 def view_fuente():
     st.json({"Fuente": "Banco Mundial + JNE + INEI + CEPAL + GFW"})
 
-# --- 5. NAVEGACIÓN CON ESTADO ---
+# --- 5. NAVEGACIÓN ---
 st.sidebar.markdown("""<div class="sidebar-header"><div class="sidebar-logo">ME</div><div><div class="sidebar-main-title">Monitor Electoral</div><div class="sidebar-subtitle">Perú 2026</div></div></div>""", unsafe_allow_html=True)
 
-# Inicializar estado
+# Lógica de navegación (Arreglo definitivo del menú)
+# Usamos una clave única para el estado de la página
 if 'page_selection' not in st.session_state:
     st.session_state['page_selection'] = 'Inicio'
 
-# Sincronizar índice del menú con el estado
-opts = ["Inicio", "Candidatos", "Planes de Gobierno", "Indicadores Nacionales", "Participación Ciudadana", "Fuente de Datos"]
-default_idx = opts.index(st.session_state['page_selection']) if st.session_state['page_selection'] in opts else 0
+# Función callback para actualizar el estado cuando se hace clic en el menú
+def on_menu_change(key):
+    st.session_state['page_selection'] = st.session_state[key]
+
+# Mapeo de opciones para sincronización
+options = ["Inicio", "Candidatos", "Planes de Gobierno", "Indicadores Nacionales", "Participación Ciudadana", "Fuente de Datos"]
+
+# Determinar el índice por defecto basado en el estado actual
+# Esto permite que si cambiamos el estado desde un botón (ej: "Ver Plan"), el menú se actualice visualmente
+default_index = 0
+if st.session_state['page_selection'] in options:
+    default_index = options.index(st.session_state['page_selection'])
 
 with st.sidebar:
     selected = option_menu(
         menu_title=None,
-        options=opts,
+        options=options,
         icons=["house-door-fill", "people-fill", "file-text-fill", "bar-chart-fill", "chat-text-fill", "database-fill"],
-        default_index=default_idx, # Corrección: Usar la variable correcta para sincronizar
+        default_index=default_index, 
         styles={
             "container": {"padding": "0!important", "background-color": "#ffffff"},
             "icon": {"color": "#64748B", "font-size": "16px"}, 
             "nav-link": {"font-size": "14px", "text-align": "left", "margin": "0px", "padding": "10px 15px", "color": "#334155"},
             "nav-link-selected": {"background-color": "#EFF6FF", "color": "#2563EB", "font-weight": "600", "border-left": "3px solid #2563EB"}
         },
-        key='menu_widget', # Clave del widget
-        on_change=lambda: st.session_state.update({'page_selection': st.session_state['menu_widget']}) # Callback
+        key='menu_selection', # Clave única para el widget
+        on_change=on_menu_change, # Callback sin lambda para evitar errores de serialización
+        args=('menu_selection',) # Pasar la clave como argumento
     )
     st.markdown("---")
     st.caption("© 2026 Monitor Electoral")
 
-# Enrutador
+# Router basado en el estado de sesión (Fuente de la verdad)
 if st.session_state['page_selection'] == "Inicio": view_inicio()
 elif st.session_state['page_selection'] == "Candidatos": view_candidatos()
 elif st.session_state['page_selection'] == "Planes de Gobierno": view_planes()
