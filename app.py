@@ -7,7 +7,7 @@ import numpy as np
 import os
 from streamlit_option_menu import option_menu
 
-# IMPORTAR DATOS EXTERNOS
+# IMPORTAR DATOS EXTERNOS DE CANDIDATOS
 try:
     from candidatos_data import obtener_data_candidatos
 except ImportError:
@@ -38,22 +38,18 @@ def local_css():
         footer {visibility: hidden;}
         header {visibility: hidden;}
         
-        /* CORRECCIÓN CRÍTICA DEL SIDEBAR */
-        [data-testid="stSidebar"] {
+        /* CORRECCIÓN MENÚ LATERAL */
+        section[data-testid="stSidebar"] {
             background-color: #FFFFFF;
             border-right: 1px solid #E2E8F0;
-            min-width: 300px !important;
-            max-width: 300px !important;
+            min-width: 280px !important;
         }
-        /* Forzar visibilidad del contenido del sidebar */
-        [data-testid="stSidebarNav"] {
-            display: none !important; /* Ocultar nav nativa de Streamlit */
-        }
-        /* Bloquear colapso */
+        
+        /* Ocultar flecha de colapsar para que quede fijo */
         [data-testid="collapsedControl"] {
             display: none;
         }
-        
+
         h1 { font-weight: 800; color: #0F172A; font-size: 2rem; margin-bottom: 0.5rem; }
         .intro-text { color: #64748B; font-size: 1rem; line-height: 1.6; margin-bottom: 2rem; }
 
@@ -197,9 +193,22 @@ def load_data():
         # 4. VICTIMIZACIÓN
         df_victimizacion = smart_read_csv(os.path.join(data_path, "victimizacion.csv"), keyword_search="AÑO")
 
-        # 5. SERVICIOS 
-        df_servicios_basicos = smart_read_csv(os.path.join(data_path, "servicios_basicos.csv"), expected_columns=['Servicio', 'Porcentaje'])
-        
+        # 5. SERVICIOS BÁSICOS (Reparación)
+        # El archivo tiene: "Servicios básicos_(EH)", "Área geográfica", "value"
+        # Tiene filas duplicadas por área (Rural/Urbana). Si queremos un general, filtramos o usamos todo.
+        # Usaremos melt o filtro para mostrar barras.
+        file_servicios = os.path.join(data_path, "servicios_basicos.csv")
+        if os.path.exists(file_servicios):
+            try: 
+                df_servicios_basicos = pd.read_csv(file_servicios, header=0) 
+                # Renombrar columnas para estandarizar
+                df_servicios_basicos = df_servicios_basicos.rename(columns={
+                    'Servicios básicos_(EH)': 'Servicio',
+                    'Área geográfica': 'Area',
+                    'value': 'Porcentaje'
+                })
+            except: pass
+
         # 6. INTERNET QUINTILES
         file_internet = os.path.join(data_path, "internet_quintiles.csv")
         if os.path.exists(file_internet):
@@ -211,14 +220,36 @@ def load_data():
                     df_internet_quintiles = df_temp.melt(id_vars=['Quintil'], value_vars=value_vars, var_name='Área', value_name='Porcentaje')
             except: pass
         
-        # 7. BOSQUES
-        df_bosques = smart_read_csv(os.path.join(data_path, "bosques.csv"), expected_columns=['Año', 'Hectareas'])
-        
-        # 8. CO2
-        df_co2 = smart_read_csv(os.path.join(data_path, "emisions_co2.csv"), expected_columns=['Año', 'Megatoneladas'])
-        
-        # 9. GOBERNANZA
-        df_gobernanza = smart_read_csv(os.path.join(data_path, "eficacia_gobierno.csv"), expected_columns=['Indicador', 'Puntaje'])
+        # 7. BOSQUES (Header 1)
+        file_bosques = os.path.join(data_path, "bosques.csv")
+        if os.path.exists(file_bosques):
+            try: 
+                df_bosques = pd.read_csv(file_bosques, header=1)
+                # Limpieza de nombres
+                df_bosques.columns = ['Año', 'Hectareas']
+            except: pass
+
+        # 8. CO2 (Reparación)
+        # Archivo "emisions_co2.csv" tiene header en fila 1. Columnas: "Año", "CO2". Valores con comas.
+        file_co2 = os.path.join(data_path, "emisions_co2.csv")
+        if os.path.exists(file_co2):
+            try: 
+                df_co2 = pd.read_csv(file_co2, header=1)
+                df_co2.columns = ['Año', 'Megatoneladas']
+                # Limpiar comas
+                if df_co2['Megatoneladas'].dtype == object:
+                     df_co2['Megatoneladas'] = df_co2['Megatoneladas'].astype(str).str.replace(',', '').astype(float)
+            except: pass
+
+        # 9. GOBERNANZA (Reparación)
+        # Archivo "eficacia_gobierno.csv" tiene header en fila 1. Columnas: "Año", "Puntuación".
+        # Queremos mostrar evolución temporal (línea), no solo una barra.
+        file_gob = os.path.join(data_path, "eficacia_gobierno.csv")
+        if os.path.exists(file_gob):
+            try: 
+                df_gobernanza = pd.read_csv(file_gob, header=1)
+                df_gobernanza.columns = ['Año', 'Puntuación']
+            except: pass
 
         # 10. DEUDA PÚBLICA
         df_deuda = smart_read_csv(os.path.join(data_path, "deuda_publica.csv"), expected_columns=['Año', 'Soles'])
@@ -289,11 +320,11 @@ def render_proposal_card(subtema, tipo, texto):
     </div>
     """, unsafe_allow_html=True)
 
-# --- HELPER: GRÁFICO CON ZOOM INTELIGENTE CORREGIDO ---
+# --- HELPER: GRÁFICO CON ZOOM INTELIGENTE ---
 def plot_zoom_chart(df, x_col, y_col, color, chart_type='line'):
     if df.empty: return None
     
-    # CORRECCIÓN ERROR 'str' - 'int': Convertir a numérico antes de calcular
+    # Convertir a numérico para evitar errores de cálculo
     df[x_col] = pd.to_numeric(df[x_col], errors='coerce')
     df = df.dropna(subset=[x_col])
     
@@ -471,7 +502,10 @@ def view_indicadores():
         c1, c2 = st.columns(2)
         with c1:
             st.markdown('<div class="radio-card"><div class="radio-title">Servicios Básicos (Vivienda)</div>', unsafe_allow_html=True)
-            if not df_servicios.empty: st.plotly_chart(px.bar(df_servicios, x='Porcentaje', y='Servicio', orientation='h', template='plotly_white').update_traces(marker_color='#0EA5E9'), use_container_width=True)
+            if not df_servicios.empty: 
+                # Gráfico de barras agrupadas para servicios (Rural vs Urbana)
+                fig_serv = px.bar(df_servicios, x='Porcentaje', y='Servicio', color='Area', barmode='group', orientation='h', template='plotly_white')
+                st.plotly_chart(fig_serv, use_container_width=True)
             else: st.info("Datos de servicios no disponibles.")
             st.markdown('</div>', unsafe_allow_html=True)
         with c2:
@@ -504,12 +538,9 @@ def view_indicadores():
         c1, c2 = st.columns(2)
         with c1:
             st.markdown('<div class="radio-card"><div class="radio-title">Indicadores de Gobernanza (0-100)</div>', unsafe_allow_html=True)
+            # Mostrar la evolución temporal de la Eficacia del Gobierno
             if not df_gob.empty: 
-                fig_gob = px.bar(df_gob, x='Puntaje', y='Indicador', orientation='h', template='plotly_white')
-                fig_gob.update_traces(marker_color='#7C3AED')
-                fig_gob.update_xaxes(range=[0, 25])
-                fig_gob.update_layout(height=250)
-                st.plotly_chart(fig_gob, use_container_width=True)
+                st.plotly_chart(plot_zoom_chart(df_gob, 'Año', 'Puntuación', '#7C3AED', 'line'), use_container_width=True)
             else: st.info("Datos de gobernanza no disponibles.")
             st.markdown('</div>', unsafe_allow_html=True)
         with c2:
