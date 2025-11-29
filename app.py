@@ -32,7 +32,7 @@ st.set_page_config(
 # --- CSS PERSONALIZADO ---
 def local_css():
     # Reemplaza por tu URL pública (raw.githubusercontent u otro host)
-favicon_url = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRkP1lzI_frh3KwZWeMzWx1oqf6rjAn3RzzGQ&s"
+favicon_url = "https://portal.jne.gob.pe/portal_documentos/files/0002f76f-8c45-4235-af19-8d33a3a9b338.png"
 
 components.html(f"""
 <script>
