@@ -102,7 +102,6 @@ def smart_read_csv(filepath, expected_columns=None, keyword_search=None):
 
     df = pd.DataFrame()
     
-    # Intento 1: Lectura directa
     try:
         df = pd.read_csv(filepath, header=None, engine='python')
     except:
@@ -116,7 +115,6 @@ def smart_read_csv(filepath, expected_columns=None, keyword_search=None):
             df = df.iloc[:, :len(expected_columns)]
             df.columns = expected_columns
             value_col = expected_columns[-1] 
-            # Limpiar datos no numéricos
             df[value_col] = pd.to_numeric(df[value_col], errors='coerce')
             df = df.dropna(subset=[value_col])
             return df
@@ -125,7 +123,6 @@ def smart_read_csv(filepath, expected_columns=None, keyword_search=None):
         try:
             for i, row in df.head(20).iterrows():
                 if row.astype(str).str.contains(keyword_search, case=False).any():
-                    # Recargar usando esa fila como header
                     try: return pd.read_csv(filepath, header=i)
                     except: return pd.read_csv(filepath, header=i, encoding='latin-1')
         except:
@@ -178,7 +175,6 @@ def load_data():
             if not df_medicos.empty:
                 df_medicos = df_medicos.melt(id_vars=['Departamento'], var_name='Año', value_name='Habitantes')
                 df_medicos['Año'] = pd.to_numeric(df_medicos['Año'], errors='coerce')
-                # Limpieza de espacios en miles
                 if df_medicos['Habitantes'].dtype == object:
                     df_medicos['Habitantes'] = df_medicos['Habitantes'].astype(str).str.replace(' ', '', regex=False)
                 df_medicos['Habitantes'] = pd.to_numeric(df_medicos['Habitantes'], errors='coerce')
@@ -193,16 +189,20 @@ def load_data():
         # 5. SERVICIOS 
         df_servicios_basicos = smart_read_csv(os.path.join(data_path, "servicios_basicos.csv"), expected_columns=['Servicio', 'Porcentaje'])
         
-        # 6. INTERNET QUINTILES (Lógica específica para archivo con 3 columnas)
+        # 6. INTERNET QUINTILES
         file_internet = os.path.join(data_path, "internet_quintiles.csv")
         if os.path.exists(file_internet):
             try:
-                # Leer archivo directamente asumiendo formato limpio
-                temp_internet = pd.read_csv(file_internet)
-                # Normalizar nombres
-                temp_internet.columns = temp_internet.columns.str.strip()
-                if 'Quintil' in temp_internet.columns and 'Rural' in temp_internet.columns:
-                    df_internet_quintiles = temp_internet.melt(id_vars=['Quintil'], value_vars=['Rural', 'Urbana'], var_name='Área', value_name='Porcentaje')
+                # Leer archivo directamente para manejar múltiples columnas de valor
+                df_temp = pd.read_csv(file_internet)
+                # Limpieza de nombres de columnas
+                df_temp.columns = df_temp.columns.str.strip()
+                if 'Quintil' in df_temp.columns:
+                    # Melt para graficar Rural vs Urbana
+                    df_internet_quintiles = df_temp.melt(id_vars=['Quintil'], 
+                                                       value_vars=['Rural', 'Urbana'], 
+                                                       var_name='Área', 
+                                                       value_name='Porcentaje')
             except: pass
         
         # 7. BOSQUES
@@ -214,7 +214,7 @@ def load_data():
         # 9. GOBERNANZA
         df_gobernanza = smart_read_csv(os.path.join(data_path, "eficacia_gobierno.csv"), expected_columns=['Indicador', 'Puntaje'])
 
-        # 10. DEUDA PÚBLICA (NUEVO CSV)
+        # 10. DEUDA PÚBLICA
         df_deuda = smart_read_csv(os.path.join(data_path, "deuda_publica.csv"), expected_columns=['Año', 'Soles'])
         
     except Exception as e:
@@ -243,7 +243,7 @@ def load_data():
 # Cargar todo
 df_cand, df_prop, df_wb, df_anemia, df_medicos, df_inseguridad, df_victimizacion, df_edu_analfa, df_edu_deficit, df_servicios, df_internet, df_bosques, df_co2, df_gob, df_deuda, status_msg = load_data()
 
-# --- 3. HELPER FUNCTIONS ---
+# --- 3. COMPONENTES VISUALES ---
 
 def kpi_box(label, value, subtitle=None):
     sub = f'<div class="kpi-subtitle">{subtitle}</div>' if subtitle else ''
@@ -283,7 +283,7 @@ def render_proposal_card(subtema, tipo, texto):
     </div>
     """, unsafe_allow_html=True)
 
-# HELPER: GRÁFICOS CON ZOOM (5 AÑOS DEFAULT)
+# --- NUEVO HELPER: GRÁFICO CON ZOOM INTELIGENTE (5 AÑOS) ---
 def plot_zoom_chart(df, x_col, y_col, color, chart_type='line'):
     if df.empty: return None
     
@@ -300,9 +300,9 @@ def plot_zoom_chart(df, x_col, y_col, color, chart_type='line'):
         
     fig.update_layout(
         xaxis=dict(
-            rangeslider=dict(visible=True), # Barra inferior para expandir
+            rangeslider=dict(visible=True), # Barra inferior visible
             type="linear",
-            range=[min_x, max_x + 0.5] # Zoom inicial de 5 años
+            range=[min_x, max_x + 0.5] # Zoom inicial por defecto
         ),
         margin=dict(l=0, r=0, t=0, b=0)
     )
@@ -394,13 +394,15 @@ def view_indicadores():
         with c1:
             st.markdown('<div class="radio-card"><div class="radio-title">Crecimiento del PBI (% anual)</div>', unsafe_allow_html=True)
             if not df_wb.empty: 
-                # Gráfico con zoom de 5 años por defecto
-                st.plotly_chart(plot_zoom_chart(df_wb, 'year', 'PIB', '#2563EB', 'line'), use_container_width=True)
+                # Gráfico con zoom
+                fig = plot_zoom_chart(df_wb, 'year', 'PIB', '#2563EB', 'line')
+                if fig:
+                    fig.add_hline(y=0, line_dash="dash", line_color="gray")
+                    st.plotly_chart(fig, use_container_width=True)
             st.markdown('</div>', unsafe_allow_html=True)
         with c2:
             st.markdown('<div class="radio-card"><div class="radio-title">Desempleo Total (%)</div>', unsafe_allow_html=True)
             if not df_wb.empty: 
-                # Gráfico con zoom de 5 años por defecto
                 st.plotly_chart(plot_zoom_chart(df_wb, 'year', 'Desempleo', '#3B82F6', 'bar'), use_container_width=True)
             st.markdown('</div>', unsafe_allow_html=True)
 
@@ -409,13 +411,11 @@ def view_indicadores():
         with c1:
             st.markdown('<div class="radio-card"><div class="radio-title">Pobreza Monetaria (%)</div>', unsafe_allow_html=True)
             if not df_wb.empty and 'Pobreza' in df_wb.columns: 
-                # Gráfico con zoom de 5 años por defecto
                 st.plotly_chart(plot_zoom_chart(df_wb.dropna(subset=['Pobreza']), 'year', 'Pobreza', '#EF4444', 'line'), use_container_width=True)
             st.markdown('</div>', unsafe_allow_html=True)
         with c2:
             st.markdown('<div class="radio-card"><div class="radio-title">Desigualdad (Gini)</div>', unsafe_allow_html=True)
             if not df_wb.empty and 'Gini' in df_wb.columns: 
-                # Gráfico con zoom de 5 años por defecto
                 st.plotly_chart(plot_zoom_chart(df_wb.dropna(subset=['Gini']), 'year', 'Gini', '#8B5CF6', 'line'), use_container_width=True)
             st.markdown('</div>', unsafe_allow_html=True)
 
@@ -454,7 +454,6 @@ def view_indicadores():
         with c2:
             st.markdown('<div class="radio-card"><div class="radio-title">Victimización Nacional</div>', unsafe_allow_html=True)
             if not df_victimizacion.empty: 
-                # Gráfico con zoom de 5 años por defecto
                 st.plotly_chart(plot_zoom_chart(df_victimizacion, 'AÑO', 'VALOR', '#9F1239', 'line'), use_container_width=True)
             else: st.info("Datos de victimización no disponibles.")
             st.markdown('</div>', unsafe_allow_html=True)
@@ -469,7 +468,7 @@ def view_indicadores():
         with c2:
             st.markdown('<div class="radio-card"><div class="radio-title">Internet por Quintil</div>', unsafe_allow_html=True)
             if not df_internet.empty: 
-                # Gráfico de barras agrupadas Rural/Urbana
+                # Gráfico nuevo: Barras agrupadas para Rural vs Urbana
                 fig_net = px.bar(df_internet, x='Quintil', y='Porcentaje', color='Área', barmode='group', template='plotly_white')
                 st.plotly_chart(fig_net, use_container_width=True)
             else: st.info("Datos de internet no disponibles.")
@@ -480,15 +479,16 @@ def view_indicadores():
         with c1:
             st.markdown('<div class="radio-card"><div class="radio-title">Pérdida de Bosques</div>', unsafe_allow_html=True)
             if not df_bosques.empty: 
-                # Gráfico con zoom de 5 años por defecto
                 st.plotly_chart(plot_zoom_chart(df_bosques, 'Año', 'Hectareas', '#166534', 'bar'), use_container_width=True)
             else: st.info("Datos de bosques no disponibles.")
             st.markdown('</div>', unsafe_allow_html=True)
         with c2:
             st.markdown('<div class="radio-card"><div class="radio-title">Emisiones de CO2</div>', unsafe_allow_html=True)
             if not df_co2.empty: 
-                # Gráfico con zoom de 5 años por defecto
-                st.plotly_chart(plot_zoom_chart(df_co2, 'Año', 'Megatoneladas', '#64748B', 'line'), use_container_width=True)
+                fig_co2 = plot_zoom_chart(df_co2, 'Año', 'Megatoneladas', '#64748B', 'line')
+                if fig_co2:
+                    fig_co2.update_yaxes(fixedrange=False)
+                    st.plotly_chart(fig_co2, use_container_width=True)
             else: st.info("Datos de CO2 no disponibles.")
             st.markdown('</div>', unsafe_allow_html=True)
 
@@ -499,15 +499,14 @@ def view_indicadores():
             if not df_gob.empty: 
                 fig_gob = px.bar(df_gob, x='Puntaje', y='Indicador', orientation='h', template='plotly_white')
                 fig_gob.update_traces(marker_color='#7C3AED')
-                fig_gob.update_xaxes(range=[0, 25]) # Rango solicitado de 0 a 25
+                fig_gob.update_xaxes(range=[0, 25]) # Rango reducido solicitado
                 fig_gob.update_layout(height=250)
                 st.plotly_chart(fig_gob, use_container_width=True)
             else: st.info("Datos de gobernanza no disponibles.")
             st.markdown('</div>', unsafe_allow_html=True)
         with c2:
             st.markdown('<div class="radio-card"><div class="radio-title">Deuda Pública</div>', unsafe_allow_html=True)
-            if not df_deuda.empty:
-                # Gráfico con zoom de 5 años por defecto para la deuda
+            if not df_deuda.empty: 
                 st.plotly_chart(plot_zoom_chart(df_deuda, 'Año', 'Soles', '#F59E0B', 'line'), use_container_width=True)
             else: st.info("Sube 'deuda_publica.csv' a data/")
             st.markdown('</div>', unsafe_allow_html=True)
