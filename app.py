@@ -121,14 +121,16 @@ def load_data():
     current_dir = os.path.dirname(os.path.abspath(__file__))
     data_path = os.path.join(current_dir, 'data')
     
-    # Inicializamos vacíos
+    # Inicializamos todos los dataframes vacíos
     df_anemia = pd.DataFrame()
     df_medicos = pd.DataFrame()
     df_inseguridad = pd.DataFrame()
     df_victimizacion = pd.DataFrame()
-    df_servicios = pd.DataFrame() # Nuevo
-    df_internet = pd.DataFrame() # Nuevo
+    df_servicios_basicos = pd.DataFrame() # Nuevo
+    df_internet_quintiles = pd.DataFrame() # Nuevo
     df_bosques = pd.DataFrame() # Nuevo
+    df_co2 = pd.DataFrame() # Nuevo
+    df_gobernanza = pd.DataFrame() # Nuevo
 
     try:
         # 1. ANEMIA
@@ -143,17 +145,20 @@ def load_data():
         # 2. MÉDICOS
         file_medicos = os.path.join(data_path, "medicos.csv")
         if os.path.exists(file_medicos):
-            try: 
-                df_medicos_raw = pd.read_csv(file_medicos, header=4)
-                # ... (Lógica de limpieza previa) ...
-                if 'Departamento' in df_medicos_raw.columns:
-                    df_medicos = df_medicos_raw[df_medicos_raw['Departamento'].str.contains('Total', case=False, na=False)]
-                    if not df_medicos.empty:
-                        df_medicos = df_medicos.melt(id_vars=['Departamento'], var_name='Año', value_name='Habitantes')
-                        df_medicos['Año'] = pd.to_numeric(df_medicos['Año'], errors='coerce')
-                        df_medicos['Habitantes'] = pd.to_numeric(df_medicos['Habitantes'], errors='coerce')
-                        df_medicos = df_medicos.dropna(subset=['Año', 'Habitantes']).sort_values('Año')
+            df_medicos_raw = None
+            try: df_medicos_raw = pd.read_csv(file_medicos, header=4)
             except: pass
+            if df_medicos_raw is None:
+                try: df_medicos_raw = pd.read_csv(file_medicos, header=4, encoding='latin-1')
+                except: pass
+            
+            if df_medicos_raw is not None and 'Departamento' in df_medicos_raw.columns:
+                df_medicos = df_medicos_raw[df_medicos_raw['Departamento'].str.contains('Total', case=False, na=False)]
+                if not df_medicos.empty:
+                    df_medicos = df_medicos.melt(id_vars=['Departamento'], var_name='Año', value_name='Habitantes')
+                    df_medicos['Año'] = pd.to_numeric(df_medicos['Año'], errors='coerce')
+                    df_medicos['Habitantes'] = pd.to_numeric(df_medicos['Habitantes'], errors='coerce')
+                    df_medicos = df_medicos.dropna(subset=['Año', 'Habitantes']).sort_values('Año')
         
         # 3. INSEGURIDAD
         file_inseguridad = os.path.join(data_path, "inseguridad.csv")
@@ -167,28 +172,42 @@ def load_data():
             try: df_victimizacion = pd.read_csv(file_victimizacion, header=1)
             except: df_victimizacion = pd.read_csv(file_victimizacion, header=1, encoding='latin-1')
 
-        # 5. SERVICIOS BÁSICOS (NUEVO)
-        file_servicios = os.path.join(data_path, "servicios_basicos.csv")
+        # --- NUEVOS ARCHIVOS (SECCIONES 6, 7, 8) ---
+        
+        # 5. SERVICIOS BÁSICOS (6.1)
+        file_servicios = os.path.join(data_path, "seccion6.1.csv")
         if os.path.exists(file_servicios):
-            try: df_servicios = pd.read_csv(file_servicios)
-            except: pass
+            try: df_servicios_basicos = pd.read_csv(file_servicios)
+            except: df_servicios_basicos = pd.read_csv(file_servicios, encoding='latin-1')
 
-        # 6. INTERNET QUINTILES (NUEVO)
-        file_internet = os.path.join(data_path, "internet_quintiles.csv")
+        # 6. INTERNET QUINTILES (6.2)
+        file_internet = os.path.join(data_path, "seccion6.2.csv")
         if os.path.exists(file_internet):
-            try: df_internet = pd.read_csv(file_internet)
-            except: pass
+            try: df_internet_quintiles = pd.read_csv(file_internet)
+            except: df_internet_quintiles = pd.read_csv(file_internet, encoding='latin-1')
 
-        # 7. BOSQUES (NUEVO)
-        file_bosques = os.path.join(data_path, "bosques.csv")
+        # 7. BOSQUES (7.1)
+        file_bosques = os.path.join(data_path, "seccion7.1.csv")
         if os.path.exists(file_bosques):
             try: df_bosques = pd.read_csv(file_bosques)
-            except: pass
+            except: df_bosques = pd.read_csv(file_bosques, encoding='latin-1')
+
+        # 8. CO2 (7.2)
+        file_co2 = os.path.join(data_path, "seccion7.2.csv")
+        if os.path.exists(file_co2):
+            try: df_co2 = pd.read_csv(file_co2)
+            except: df_co2 = pd.read_csv(file_co2, encoding='latin-1')
+
+        # 9. GOBERNANZA (8.1)
+        file_gob = os.path.join(data_path, "seccion8.1.csv")
+        if os.path.exists(file_gob):
+            try: df_gobernanza = pd.read_csv(file_gob)
+            except: df_gobernanza = pd.read_csv(file_gob, encoding='latin-1')
         
     except Exception as e:
-        print(f"Error global cargando CSVs: {e}")
+        print(f"Error cargando CSVs: {e}")
 
-    # --- C. DATOS MANUALES ---
+    # --- C. DATOS MANUALES (Educación) ---
     df_edu_analfa = pd.DataFrame({
         'year': [2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022],
         'Tasa': [6.2, 6.0, 5.9, 5.9, 5.8, 5.6, 5.5, 5.5, 5.2, 5.1]
@@ -197,13 +216,7 @@ def load_data():
         'Año': [2016, 2018, 2020, 2022],
         'Servicios': [1200, 1150, 1100, 1050]
     })
-    
-    # Datos Manuales para CO2 y Gobernanza
-    df_co2 = pd.DataFrame({
-        'Año': [2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022],
-        'Emisiones': [55.2, 56.1, 55.8, 56.5, 57.2, 45.1, 52.3, 54.8] # Megatoneladas aprox
-    })
-    
+
     # --- D. CANDIDATOS ---
     try:
         df_cand = obtener_data_candidatos()
@@ -225,9 +238,10 @@ def load_data():
         'Tipo': ['Decreto', 'Infraestructura', 'Ley', 'Programa', 'Ley']
     })
 
-    return df_cand, df_prop, wb_data, df_anemia, df_medicos, df_inseguridad, df_victimizacion, df_edu_analfa, df_edu_deficit, df_servicios, df_internet, df_bosques, df_co2, status
+    return df_cand, df_prop, wb_data, df_anemia, df_medicos, df_inseguridad, df_victimizacion, df_edu_analfa, df_edu_deficit, df_servicios_basicos, df_internet_quintiles, df_bosques, df_co2, df_gobernanza, status
 
-df_cand, df_prop, df_wb, df_anemia, df_medicos, df_inseguridad, df_victimizacion, df_edu_analfa, df_edu_deficit, df_servicios, df_internet, df_bosques, df_co2, status_msg = load_data()
+# Desempaquetar todas las variables
+df_cand, df_prop, df_wb, df_anemia, df_medicos, df_inseguridad, df_victimizacion, df_edu_analfa, df_edu_deficit, df_servicios, df_internet, df_bosques, df_co2, df_gob, status_msg = load_data()
 
 # --- 3. COMPONENTES VISUALES ---
 
@@ -397,8 +411,8 @@ def view_indicadores():
         "7. Ambiente", "8. Gobernanza"
     ])
     
-    # 1-5 YA ESTABAN LISTOS
-    with tabs[0]: # Economía
+    # 1. ECONOMÍA
+    with tabs[0]: 
         c1, c2 = st.columns(2)
         with c1:
             st.markdown('<div class="radio-card"><div class="radio-title">Crecimiento del PBI (% anual)</div>', unsafe_allow_html=True)
@@ -417,7 +431,8 @@ def view_indicadores():
             st.markdown('</div>', unsafe_allow_html=True)
         st.caption("Fuente: Banco Mundial (API)")
 
-    with tabs[1]: # Pobreza
+    # 2. POBREZA
+    with tabs[1]:
         c1, c2 = st.columns(2)
         with c1:
             st.markdown('<div class="radio-card"><div class="radio-title">Pobreza Monetaria Nacional (%)</div>', unsafe_allow_html=True)
@@ -438,7 +453,8 @@ def view_indicadores():
                     st.plotly_chart(fig4, use_container_width=True)
             st.markdown('</div>', unsafe_allow_html=True)
 
-    with tabs[2]: # Educación
+    # 3. EDUCACIÓN
+    with tabs[2]:
         c1, c2 = st.columns(2)
         with c1:
             st.markdown('<div class="radio-card"><div class="radio-title">Tasa de Analfabetismo (15+ años)</div>', unsafe_allow_html=True)
@@ -454,8 +470,10 @@ def view_indicadores():
                 fig_def.update_traces(marker_color='#F59E0B')
                 st.plotly_chart(fig_def, use_container_width=True)
             st.markdown('</div>', unsafe_allow_html=True)
+        st.caption("Fuente: ESCALE - MINEDU")
 
-    with tabs[3]: # Salud
+    # 4. SALUD
+    with tabs[3]:
         c1, c2 = st.columns(2)
         with c1:
             st.markdown('<div class="radio-card"><div class="radio-title">Anemia Infantil (6 a 35 meses)</div>', unsafe_allow_html=True)
@@ -474,7 +492,8 @@ def view_indicadores():
             else: st.info("Sube 'medicos.csv' a data/")
             st.markdown('</div>', unsafe_allow_html=True)
 
-    with tabs[4]: # Seguridad
+    # 5. SEGURIDAD
+    with tabs[4]:
         c1, c2 = st.columns(2)
         with c1:
             st.markdown('<div class="radio-card"><div class="radio-title">Percepción de Inseguridad (2024)</div>', unsafe_allow_html=True)
@@ -484,6 +503,7 @@ def view_indicadores():
                 fig_ins.update_traces(marker_color='#374151')
                 fig_ins.update_layout(yaxis=dict(autorange="reversed"))
                 st.plotly_chart(fig_ins, use_container_width=True)
+            else: st.info("Verificando 'inseguridad.csv' en data/...")
             st.markdown('</div>', unsafe_allow_html=True)
         with c2:
             st.markdown('<div class="radio-card"><div class="radio-title">Victimización Nacional (Histórico)</div>', unsafe_allow_html=True)
@@ -491,58 +511,63 @@ def view_indicadores():
                 fig_vic = px.line(df_victimizacion, x='AÑO', y='VALOR', template='plotly_white', markers=True)
                 fig_vic.update_traces(line_color='#9F1239')
                 st.plotly_chart(fig_vic, use_container_width=True)
+            else: st.info("Verificando 'victimizacion.csv' en data/...")
             st.markdown('</div>', unsafe_allow_html=True)
 
-    # --- SECCIONES NUEVAS 6, 7, 8 ---
+    # --- SECCIONES NUEVAS CON CSVs ---
     
-    with tabs[5]: # 6. Infraestructura
+    # 6. INFRAESTRUCTURA
+    with tabs[5]:
         c1, c2 = st.columns(2)
         with c1:
-            st.markdown('<div class="radio-card"><div class="radio-title">Servicios Básicos (Vivienda)</div>', unsafe_allow_html=True)
+            st.markdown('<div class="radio-card"><div class="radio-title">Hogares por Disponibilidad de Servicios (2024)</div>', unsafe_allow_html=True)
             if not df_servicios.empty:
                 fig_serv = px.bar(df_servicios, x='Porcentaje', y='Servicio', orientation='h', template='plotly_white')
                 fig_serv.update_traces(marker_color='#0EA5E9')
                 st.plotly_chart(fig_serv, use_container_width=True)
-            else: st.info("Sube 'servicios_basicos.csv'")
+            else: st.info("Sube 'seccion6.1.csv' a data/")
             st.markdown('</div>', unsafe_allow_html=True)
         with c2:
-            st.markdown('<div class="radio-card"><div class="radio-title">Acceso a Internet por Quintil</div>', unsafe_allow_html=True)
+            st.markdown('<div class="radio-card"><div class="radio-title">Acceso a Internet por Quintil de Ingresos</div>', unsafe_allow_html=True)
             if not df_internet.empty:
-                fig_net = px.bar(df_internet, x='Quintil', y='Acceso_Internet', template='plotly_white')
+                fig_net = px.bar(df_internet, x='Quintil', y='Porcentaje', template='plotly_white')
                 fig_net.update_traces(marker_color='#6366F1')
                 st.plotly_chart(fig_net, use_container_width=True)
-            else: st.info("Sube 'internet_quintiles.csv'")
+            else: st.info("Sube 'seccion6.2.csv' a data/")
             st.markdown('</div>', unsafe_allow_html=True)
-        st.caption("Fuente: CEPAL (Estadísticas Sociales)")
+        st.caption("Fuente: CEPAL (Estadísticas de Vivienda y Servicios)")
 
-    with tabs[6]: # 7. Ambiente
+    # 7. AMBIENTE
+    with tabs[6]:
         c1, c2 = st.columns(2)
         with c1:
             st.markdown('<div class="radio-card"><div class="radio-title">Pérdida de Cobertura Arbórea (Hectáreas)</div>', unsafe_allow_html=True)
             if not df_bosques.empty:
-                fig_bosq = px.bar(df_bosques, x='Año', y='Hectareas_Perdidas', template='plotly_white')
+                fig_bosq = px.bar(df_bosques, x='Año', y='Hectareas', template='plotly_white')
                 fig_bosq.update_traces(marker_color='#166534')
                 st.plotly_chart(fig_bosq, use_container_width=True)
-            else: st.info("Sube 'bosques.csv'")
+            else: st.info("Sube 'seccion7.1.csv' a data/")
             st.markdown('</div>', unsafe_allow_html=True)
         with c2:
             st.markdown('<div class="radio-card"><div class="radio-title">Emisiones de CO2 (Megatoneladas)</div>', unsafe_allow_html=True)
-            fig_co2 = px.line(df_co2, x='Año', y='Emisiones', template='plotly_white', markers=True)
-            fig_co2.update_traces(line_color='#64748B')
-            st.plotly_chart(fig_co2, use_container_width=True)
+            if not df_co2.empty:
+                fig_co2 = px.line(df_co2, x='Año', y='Megatoneladas', template='plotly_white', markers=True)
+                fig_co2.update_traces(line_color='#64748B')
+                st.plotly_chart(fig_co2, use_container_width=True)
+            else: st.info("Sube 'seccion7.2.csv' a data/")
             st.markdown('</div>', unsafe_allow_html=True)
         st.caption("Fuente: Global Forest Watch / Datos Macro")
 
-    with tabs[7]: # 8. Gobernanza
+    # 8. GOBERNANZA
+    with tabs[7]:
         st.markdown('<div class="radio-card">', unsafe_allow_html=True)
-        st.markdown('<div class="radio-title">Eficacia del Gobierno (Percentil 0-100)</div>', unsafe_allow_html=True)
-        # Dato único manual (World Bank WGI)
-        eficacia_valor = 38.6 # Valor aprox Perú reciente
-        fig_gob = px.bar(x=[eficacia_valor], y=['Perú'], orientation='h', range_x=[0,100], template='plotly_white')
-        fig_gob.update_traces(marker_color='#7C3AED')
-        fig_gob.update_layout(height=200, xaxis_title="Percentil Rank (WGI)")
-        st.plotly_chart(fig_gob, use_container_width=True)
-        st.markdown(f"<div style='text-align:center; font-size:2rem; font-weight:bold; color:#7C3AED;'>{eficacia_valor} / 100</div>", unsafe_allow_html=True)
+        st.markdown('<div class="radio-title">Indicadores de Gobernanza (0-100)</div>', unsafe_allow_html=True)
+        if not df_gob.empty:
+            fig_gob = px.bar(df_gob, x='Puntaje', y='Indicador', orientation='h', range_x=[0,100], template='plotly_white')
+            fig_gob.update_traces(marker_color='#7C3AED')
+            fig_gob.update_layout(height=300)
+            st.plotly_chart(fig_gob, use_container_width=True)
+        else: st.info("Sube 'seccion8.1.csv' a data/")
         st.markdown('</div>', unsafe_allow_html=True)
         st.caption("Fuente: Worldwide Governance Indicators (World Bank)")
 
