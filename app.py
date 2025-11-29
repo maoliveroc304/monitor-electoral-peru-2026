@@ -32,7 +32,7 @@ st.set_page_config(
 # --- CSS PERSONALIZADO ---
 def local_css():
     # Reemplaza por tu URL pública (raw.githubusercontent u otro host)
-    favicon_url = "https://portal.jne.gob.pe/portal_documentos/files/0002f76f-8c45-4235-af19-8d33a3a9b338.png"
+    favicon_url = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcREzWuET9qRK3c6MWAdkpny1xoJOZ_MDyVUnQ&s"
 
     components.html(f"""
     <script>
@@ -669,7 +669,7 @@ elif st.session_state['page_selection'] == "Participación Ciudadana": view_part
 elif st.session_state['page_selection'] == "Fuente de Datos": view_fuente()
 
 # Chatbot
-chat_icon = "https://raw.githubusercontent.com/maoliveroc304/monitor-electoral-peru-2026/main/data/fotos/voto_informado.jpg"
+chat_icon = "https://raw.githubusercontent.com/maoliveroc304/monitor-electoral-peru-2026/main/data/fotos/imagen_logo.png"
 
 components.html(f"""
 <script src="https://www.gstatic.com/dialogflow-console/fast/messenger/bootstrap.js?v=1"></script>
