@@ -8,7 +8,11 @@ import os
 from streamlit_option_menu import option_menu
 
 # IMPORTAR DATOS EXTERNOS
-from candidatos_data import obtener_data_candidatos
+try:
+    from candidatos_data import obtener_data_candidatos
+except ImportError:
+    def obtener_data_candidatos():
+        return pd.DataFrame({'Nombre': [], 'Partido': [], 'Foto': []})
 
 # --- 1. CONFIGURACIÓN TÉCNICA ---
 st.set_page_config(
@@ -172,37 +176,58 @@ def load_data():
             try: df_victimizacion = pd.read_csv(file_victimizacion, header=1)
             except: df_victimizacion = pd.read_csv(file_victimizacion, header=1, encoding='latin-1')
 
-        # --- NUEVOS ARCHIVOS (SECCIONES 6, 7, 8) ---
+        # --- NUEVOS ARCHIVOS (SECCIONES 6, 7, 8) CON CARGA ROBUSTA ---
+        # El truco: Leer header=1 para saltar el título, y forzar nombres de columnas
         
         # 5. SERVICIOS BÁSICOS
-        file_servicios = os.path.join(data_path, "servicios_basicos.csv")
+        file_servicios = os.path.join(data_path, "seccion6.1.csv")
         if os.path.exists(file_servicios):
-            try: df_servicios_basicos = pd.read_csv(file_servicios)
-            except: df_servicios_basicos = pd.read_csv(file_servicios, encoding='latin-1')
+            try: 
+                df_servicios_basicos = pd.read_csv(file_servicios, header=1) # Saltar título
+                if len(df_servicios_basicos.columns) >= 2:
+                    df_servicios_basicos = df_servicios_basicos.iloc[:, :2] # Solo 2 columnas
+                    df_servicios_basicos.columns = ['Servicio', 'Porcentaje'] # Renombrar a lo seguro
+            except: pass
 
         # 6. INTERNET QUINTILES
-        file_internet = os.path.join(data_path, "internet_quintiles.csv")
+        file_internet = os.path.join(data_path, "seccion6.2.csv")
         if os.path.exists(file_internet):
-            try: df_internet_quintiles = pd.read_csv(file_internet)
-            except: df_internet_quintiles = pd.read_csv(file_internet, encoding='latin-1')
+            try: 
+                df_internet_quintiles = pd.read_csv(file_internet, header=1)
+                if len(df_internet_quintiles.columns) >= 2:
+                    df_internet_quintiles = df_internet_quintiles.iloc[:, :2]
+                    df_internet_quintiles.columns = ['Quintil', 'Porcentaje']
+            except: pass
 
         # 7. BOSQUES
-        file_bosques = os.path.join(data_path, "bosques.csv")
+        file_bosques = os.path.join(data_path, "seccion7.1.csv")
         if os.path.exists(file_bosques):
-            try: df_bosques = pd.read_csv(file_bosques)
-            except: df_bosques = pd.read_csv(file_bosques, encoding='latin-1')
+            try: 
+                df_bosques = pd.read_csv(file_bosques, header=1)
+                if len(df_bosques.columns) >= 2:
+                    df_bosques = df_bosques.iloc[:, :2]
+                    df_bosques.columns = ['Año', 'Hectareas']
+            except: pass
 
         # 8. CO2
-        file_co2 = os.path.join(data_path, "emisions_co2.csv")
+        file_co2 = os.path.join(data_path, "seccion7.2.csv")
         if os.path.exists(file_co2):
-            try: df_co2 = pd.read_csv(file_co2)
-            except: df_co2 = pd.read_csv(file_co2, encoding='latin-1')
+            try: 
+                df_co2 = pd.read_csv(file_co2, header=1)
+                if len(df_co2.columns) >= 2:
+                    df_co2 = df_co2.iloc[:, :2]
+                    df_co2.columns = ['Año', 'Megatoneladas']
+            except: pass
 
         # 9. GOBERNANZA
-        file_gob = os.path.join(data_path, "eficacia_gobierno.csv")
+        file_gob = os.path.join(data_path, "seccion8.1.csv")
         if os.path.exists(file_gob):
-            try: df_gobernanza = pd.read_csv(file_gob)
-            except: df_gobernanza = pd.read_csv(file_gob, encoding='latin-1')
+            try: 
+                df_gobernanza = pd.read_csv(file_gob, header=1)
+                if len(df_gobernanza.columns) >= 2:
+                    df_gobernanza = df_gobernanza.iloc[:, :2]
+                    df_gobernanza.columns = ['Indicador', 'Puntaje']
+            except: pass
         
     except Exception as e:
         print(f"Error cargando CSVs: {e}")
@@ -514,63 +539,56 @@ def view_indicadores():
             else: st.info("Verificando 'victimizacion.csv' en data/...")
             st.markdown('</div>', unsafe_allow_html=True)
 
-    # --- SECCIONES NUEVAS CON CSVs ---
-    
     # 6. INFRAESTRUCTURA
     with tabs[5]:
         c1, c2 = st.columns(2)
         with c1:
-            st.markdown('<div class="radio-card"><div class="radio-title">Hogares por Disponibilidad de Servicios (2024)</div>', unsafe_allow_html=True)
+            st.markdown('<div class="radio-card"><div class="radio-title">Servicios Básicos (Vivienda)</div>', unsafe_allow_html=True)
             if not df_servicios.empty:
                 fig_serv = px.bar(df_servicios, x='Porcentaje', y='Servicio', orientation='h', template='plotly_white')
                 fig_serv.update_traces(marker_color='#0EA5E9')
                 st.plotly_chart(fig_serv, use_container_width=True)
-            else: st.info("Sube 'servicios_basicos.csv' a data/")
+            else: st.info("Sube 'seccion6.1.csv' a data/")
             st.markdown('</div>', unsafe_allow_html=True)
         with c2:
-            st.markdown('<div class="radio-card"><div class="radio-title">Acceso a Internet por Quintil de Ingresos</div>', unsafe_allow_html=True)
+            st.markdown('<div class="radio-card"><div class="radio-title">Internet por Quintil</div>', unsafe_allow_html=True)
             if not df_internet.empty:
                 fig_net = px.bar(df_internet, x='Quintil', y='Porcentaje', template='plotly_white')
                 fig_net.update_traces(marker_color='#6366F1')
                 st.plotly_chart(fig_net, use_container_width=True)
-            else: st.info("Sube 'internet_quintiles.csv' a data/")
+            else: st.info("Sube 'seccion6.2.csv' a data/")
             st.markdown('</div>', unsafe_allow_html=True)
-        st.caption("Fuente: CEPAL (Estadísticas de Vivienda y Servicios)")
 
     # 7. AMBIENTE
     with tabs[6]:
         c1, c2 = st.columns(2)
         with c1:
-            st.markdown('<div class="radio-card"><div class="radio-title">Pérdida de Cobertura Arbórea (Hectáreas)</div>', unsafe_allow_html=True)
+            st.markdown('<div class="radio-card"><div class="radio-title">Pérdida de Bosques (Ha)</div>', unsafe_allow_html=True)
             if not df_bosques.empty:
                 fig_bosq = px.bar(df_bosques, x='Año', y='Hectareas', template='plotly_white')
                 fig_bosq.update_traces(marker_color='#166534')
                 st.plotly_chart(fig_bosq, use_container_width=True)
-            else: st.info("Sube 'bosques.csv' a data/")
+            else: st.info("Sube 'seccion7.1.csv' a data/")
             st.markdown('</div>', unsafe_allow_html=True)
         with c2:
-            st.markdown('<div class="radio-card"><div class="radio-title">Emisiones de CO2 (Megatoneladas)</div>', unsafe_allow_html=True)
+            st.markdown('<div class="radio-card"><div class="radio-title">Emisiones CO2 (Mt)</div>', unsafe_allow_html=True)
             if not df_co2.empty:
                 fig_co2 = px.line(df_co2, x='Año', y='Megatoneladas', template='plotly_white', markers=True)
                 fig_co2.update_traces(line_color='#64748B')
                 st.plotly_chart(fig_co2, use_container_width=True)
-            else: st.info("Sube 'emisions_co2.csv' a data/")
+            else: st.info("Sube 'seccion7.2.csv' a data/")
             st.markdown('</div>', unsafe_allow_html=True)
-        st.caption("Fuente: Global Forest Watch / Datos Macro")
 
     # 8. GOBERNANZA
     with tabs[7]:
-        st.markdown('<div class="radio-card">', unsafe_allow_html=True)
-        st.markdown('<div class="radio-title">Indicadores de Gobernanza (0-100)</div>', unsafe_allow_html=True)
+        st.markdown('<div class="radio-card"><div class="radio-title">Indicadores de Gobernanza (0-100)</div>', unsafe_allow_html=True)
         if not df_gob.empty:
             fig_gob = px.bar(df_gob, x='Puntaje', y='Indicador', orientation='h', range_x=[0,100], template='plotly_white')
             fig_gob.update_traces(marker_color='#7C3AED')
             fig_gob.update_layout(height=300)
             st.plotly_chart(fig_gob, use_container_width=True)
-        else: st.info("Sube 'eficacia_gobierno.csv' a data/")
+        else: st.info("Sube 'seccion8.1.csv' a data/")
         st.markdown('</div>', unsafe_allow_html=True)
-        st.caption("Fuente: Worldwide Governance Indicators (World Bank)")
-
 
 def view_participacion():
     st.title("Participación")
@@ -579,16 +597,8 @@ def view_participacion():
 def view_fuente():
     st.json({"Fuente": "Banco Mundial + JNE + INEI + CEPAL + GFW"})
 
-# --- 5. SIDEBAR NAVIGATION ---
-st.sidebar.markdown("""
-    <div class="sidebar-header">
-        <div class="sidebar-logo">ME</div>
-        <div>
-            <div class="sidebar-main-title">Monitor Electoral</div>
-            <div class="sidebar-subtitle">Perú 2026</div>
-        </div>
-    </div>
-""", unsafe_allow_html=True)
+# --- 5. NAVEGACIÓN ---
+st.sidebar.markdown("""<div class="sidebar-header"><div class="sidebar-logo">ME</div><div><div class="sidebar-main-title">Monitor Electoral</div><div class="sidebar-subtitle">Perú 2026</div></div></div>""", unsafe_allow_html=True)
 
 with st.sidebar:
     selected = option_menu(
@@ -606,10 +616,9 @@ with st.sidebar:
     st.markdown("---")
     st.caption("© 2026 Monitor Electoral")
 
-# ROUTER
 if selected == "Inicio": view_inicio()
 elif selected == "Candidatos": view_candidatos()
-elif selected == "Planes de Gobierno": view_planes() 
-elif selected == "Indicadores Nacionales": view_indicadores() 
+elif selected == "Planes de Gobierno": view_planes()
+elif selected == "Indicadores Nacionales": view_indicadores()
 elif selected == "Participación Ciudadana": view_participacion()
 elif selected == "Fuente de Datos": view_fuente()
