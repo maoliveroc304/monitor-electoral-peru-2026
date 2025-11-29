@@ -180,7 +180,7 @@ def load_data():
         # El truco: Leer header=1 para saltar el título, y forzar nombres de columnas
         
         # 5. SERVICIOS BÁSICOS
-        file_servicios = os.path.join(data_path, "seccion6.1.csv")
+        file_servicios = os.path.join(data_path, "servicios_basicos.csv")
         if os.path.exists(file_servicios):
             try: 
                 df_servicios_basicos = pd.read_csv(file_servicios, header=1) # Saltar título
@@ -190,7 +190,7 @@ def load_data():
             except: pass
 
         # 6. INTERNET QUINTILES
-        file_internet = os.path.join(data_path, "seccion6.2.csv")
+        file_internet = os.path.join(data_path, "internet_quintiles.csv")
         if os.path.exists(file_internet):
             try: 
                 df_internet_quintiles = pd.read_csv(file_internet, header=1)
@@ -200,17 +200,17 @@ def load_data():
             except: pass
 
         # 7. BOSQUES
-        file_bosques = os.path.join(data_path, "seccion7.1.csv")
+        file_bosques = os.path.join(data_path, "bosques.csv")
         if os.path.exists(file_bosques):
             try: 
-                df_bosques = pd.read_csv(file_bosques, header=1)
+                df_bosques = pd.read_(file_bosques, header=1)
                 if len(df_bosques.columns) >= 2:
                     df_bosques = df_bosques.iloc[:, :2]
                     df_bosques.columns = ['Año', 'Hectareas']
             except: pass
 
         # 8. CO2
-        file_co2 = os.path.join(data_path, "seccion7.2.csv")
+        file_co2 = os.path.join(data_path, "emisiones_co2.csv")
         if os.path.exists(file_co2):
             try: 
                 df_co2 = pd.read_csv(file_co2, header=1)
@@ -220,7 +220,7 @@ def load_data():
             except: pass
 
         # 9. GOBERNANZA
-        file_gob = os.path.join(data_path, "seccion8.1.csv")
+        file_gob = os.path.join(data_path, "eficacia_gobierno.csv")
         if os.path.exists(file_gob):
             try: 
                 df_gobernanza = pd.read_csv(file_gob, header=1)
@@ -548,7 +548,7 @@ def view_indicadores():
                 fig_serv = px.bar(df_servicios, x='Porcentaje', y='Servicio', orientation='h', template='plotly_white')
                 fig_serv.update_traces(marker_color='#0EA5E9')
                 st.plotly_chart(fig_serv, use_container_width=True)
-            else: st.info("Sube 'seccion6.1.csv' a data/")
+            else: st.info("Sube 'servicios_basicos.csv' a data/")
             st.markdown('</div>', unsafe_allow_html=True)
         with c2:
             st.markdown('<div class="radio-card"><div class="radio-title">Internet por Quintil</div>', unsafe_allow_html=True)
@@ -556,7 +556,7 @@ def view_indicadores():
                 fig_net = px.bar(df_internet, x='Quintil', y='Porcentaje', template='plotly_white')
                 fig_net.update_traces(marker_color='#6366F1')
                 st.plotly_chart(fig_net, use_container_width=True)
-            else: st.info("Sube 'seccion6.2.csv' a data/")
+            else: st.info("Sube 'internet_quintiles.csv' a data/")
             st.markdown('</div>', unsafe_allow_html=True)
 
     # 7. AMBIENTE
@@ -568,7 +568,7 @@ def view_indicadores():
                 fig_bosq = px.bar(df_bosques, x='Año', y='Hectareas', template='plotly_white')
                 fig_bosq.update_traces(marker_color='#166534')
                 st.plotly_chart(fig_bosq, use_container_width=True)
-            else: st.info("Sube 'seccion7.1.csv' a data/")
+            else: st.info("Sube 'bosques.csv' a data/")
             st.markdown('</div>', unsafe_allow_html=True)
         with c2:
             st.markdown('<div class="radio-card"><div class="radio-title">Emisiones CO2 (Mt)</div>', unsafe_allow_html=True)
@@ -576,7 +576,7 @@ def view_indicadores():
                 fig_co2 = px.line(df_co2, x='Año', y='Megatoneladas', template='plotly_white', markers=True)
                 fig_co2.update_traces(line_color='#64748B')
                 st.plotly_chart(fig_co2, use_container_width=True)
-            else: st.info("Sube 'seccion7.2.csv' a data/")
+            else: st.info("Sube 'emisiones_co2.csv' a data/")
             st.markdown('</div>', unsafe_allow_html=True)
 
     # 8. GOBERNANZA
@@ -587,7 +587,7 @@ def view_indicadores():
             fig_gob.update_traces(marker_color='#7C3AED')
             fig_gob.update_layout(height=300)
             st.plotly_chart(fig_gob, use_container_width=True)
-        else: st.info("Sube 'seccion8.1.csv' a data/")
+        else: st.info("Sube 'eficacia_gobierno.csv' a data/")
         st.markdown('</div>', unsafe_allow_html=True)
 
 def view_participacion():
