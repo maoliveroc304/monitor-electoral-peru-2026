@@ -5,6 +5,7 @@ from pandas_datareader import wb
 import datetime
 import numpy as np
 import os
+import streamlit.components.v1 as components # Necesario para el chatbot
 from streamlit_option_menu import option_menu
 
 # IMPORTAR DATOS EXTERNOS
@@ -52,9 +53,7 @@ def local_css():
             width: 280px !important;
         }
         
-        [data-testid="collapsedControl"] {
-            display: none;
-        }
+        [data-testid="collapsedControl"] { display: none; }
 
         h1 { font-weight: 800; color: #0F172A; font-size: 2rem; margin-bottom: 0.5rem; }
         .intro-text { color: #64748B; font-size: 1rem; line-height: 1.6; margin-bottom: 2rem; }
@@ -141,7 +140,7 @@ def smart_read_csv(filepath, expected_columns=None, keyword_search=None):
         if df.shape[1] >= len(expected_columns):
             df = df.iloc[:, :len(expected_columns)]
             df.columns = expected_columns
-            value_col = expected_columns[-1] 
+            value_col = expected_columns[-1]
             df[value_col] = pd.to_numeric(df[value_col], errors='coerce')
             df = df.dropna(subset=[value_col])
             return df
@@ -174,7 +173,7 @@ def load_data():
     current_dir = os.path.dirname(os.path.abspath(__file__))
     data_path = os.path.join(current_dir, 'data')
     
-    # Inicializar TODOS los DataFrames
+    # Inicialización
     df_anemia = pd.DataFrame()
     df_medicos = pd.DataFrame()
     df_inseguridad = pd.DataFrame()
@@ -196,15 +195,24 @@ def load_data():
 
         # 2. MÉDICOS
         file_medicos = os.path.join(data_path, "medicos.csv")
-        df_medicos = smart_read_csv(file_medicos, keyword_search="Departamento")
-        if not df_medicos.empty:
-            df_medicos = df_medicos[df_medicos['Departamento'].str.contains('Total', case=False, na=False)]
-            df_medicos = df_medicos.melt(id_vars=['Departamento'], var_name='Año', value_name='Habitantes')
-            df_medicos['Año'] = pd.to_numeric(df_medicos['Año'], errors='coerce')
-            if df_medicos['Habitantes'].dtype == object:
-                 df_medicos['Habitantes'] = df_medicos['Habitantes'].astype(str).str.replace(' ', '', regex=False)
-            df_medicos['Habitantes'] = pd.to_numeric(df_medicos['Habitantes'], errors='coerce')
-            df_medicos = df_medicos.dropna(subset=['Año', 'Habitantes']).sort_values('Año')
+        if os.path.exists(file_medicos):
+            # Lectura manual robusta para header saltado
+            try: 
+                # Intentar varios headers típicos
+                temp = pd.read_csv(file_medicos, header=4) # El formato usual de tus excel
+                if 'Departamento' not in temp.columns:
+                     temp = pd.read_csv(file_medicos, header=0) # Si está limpio
+
+                if 'Departamento' in temp.columns:
+                    temp = temp[temp['Departamento'].str.contains('Total', case=False, na=False)]
+                    if not temp.empty:
+                        df_medicos = temp.melt(id_vars=['Departamento'], var_name='Año', value_name='Habitantes')
+                        df_medicos['Año'] = pd.to_numeric(df_medicos['Año'], errors='coerce')
+                        if df_medicos['Habitantes'].dtype == object:
+                            df_medicos['Habitantes'] = df_medicos['Habitantes'].astype(str).str.replace(' ', '', regex=False)
+                        df_medicos['Habitantes'] = pd.to_numeric(df_medicos['Habitantes'], errors='coerce')
+                        df_medicos = df_medicos.dropna(subset=['Año', 'Habitantes']).sort_values('Año')
+            except: pass
 
         # 3. INSEGURIDAD
         df_inseguridad = smart_read_csv(os.path.join(data_path, "inseguridad.csv"), keyword_search="DEPARTAMENTO")
@@ -212,8 +220,17 @@ def load_data():
         # 4. VICTIMIZACIÓN
         df_victimizacion = smart_read_csv(os.path.join(data_path, "victimizacion.csv"), keyword_search="AÑO")
 
-        # 5. SERVICIOS 
-        df_servicios = smart_read_csv(os.path.join(data_path, "servicios_basicos.csv"), expected_columns=['Servicio', 'Porcentaje'])
+        # 5. SERVICIOS (Fix para archivo con 3 columnas: Servicio, Area, Value)
+        file_serv = os.path.join(data_path, "servicios_basicos.csv")
+        if os.path.exists(file_serv):
+            try:
+                temp = pd.read_csv(file_serv, header=0)
+                # Renombrar si es necesario para estandarizar
+                if len(temp.columns) >= 3:
+                    df_servicios = temp.iloc[:, [0, 2]] # Tomar col 0 y 2 (Servicio y Valor)
+                    df_servicios.columns = ['Servicio', 'Porcentaje']
+                    df_servicios['Porcentaje'] = pd.to_numeric(df_servicios['Porcentaje'], errors='coerce')
+            except: pass
         
         # 6. INTERNET QUINTILES
         file_internet = os.path.join(data_path, "internet_quintiles.csv")
@@ -222,18 +239,37 @@ def load_data():
                 df_temp = pd.read_csv(file_internet, header=0)
                 df_temp.columns = df_temp.columns.str.strip()
                 if 'Quintil' in df_temp.columns:
-                    value_vars = [c for c in df_temp.columns if c != 'Quintil']
-                    df_internet = df_temp.melt(id_vars=['Quintil'], value_vars=value_vars, var_name='Área', value_name='Porcentaje')
+                    # Excluir columna Quintil para el melt
+                    val_vars = [c for c in df_temp.columns if c != 'Quintil']
+                    df_internet = df_temp.melt(id_vars=['Quintil'], value_vars=val_vars, var_name='Área', value_name='Porcentaje')
             except: pass
         
         # 7. BOSQUES
         df_bosques = smart_read_csv(os.path.join(data_path, "bosques.csv"), expected_columns=['Año', 'Hectareas'])
         
-        # 8. CO2
-        df_co2 = smart_read_csv(os.path.join(data_path, "emisions_co2.csv"), expected_columns=['Año', 'Megatoneladas'])
+        # 8. CO2 (Fix para valores con comas "58,403")
+        file_co2 = os.path.join(data_path, "emisions_co2.csv")
+        if os.path.exists(file_co2):
+            try:
+                # Probar header 1
+                temp = pd.read_csv(file_co2, header=1)
+                if len(temp.columns) >= 2:
+                    df_co2 = temp.iloc[:, :2]
+                    df_co2.columns = ['Año', 'Megatoneladas']
+                    # Limpiar comas
+                    if df_co2['Megatoneladas'].dtype == object:
+                        df_co2['Megatoneladas'] = df_co2['Megatoneladas'].astype(str).str.replace(',', '').astype(float)
+            except: pass
         
-        # 9. GOBERNANZA
-        df_gob = smart_read_csv(os.path.join(data_path, "eficacia_gobierno.csv"), expected_columns=['Indicador', 'Puntaje'])
+        # 9. GOBERNANZA (Fix para serie temporal)
+        file_gob = os.path.join(data_path, "eficacia_gobierno.csv")
+        if os.path.exists(file_gob):
+            try:
+                temp = pd.read_csv(file_gob, header=1)
+                if len(temp.columns) >= 2:
+                    df_gob = temp.iloc[:, :2]
+                    df_gob.columns = ['Año', 'Puntuación']
+            except: pass
 
         # 10. DEUDA PÚBLICA
         df_deuda = smart_read_csv(os.path.join(data_path, "deuda_publica.csv"), expected_columns=['Año', 'Soles'])
@@ -290,11 +326,11 @@ def render_proposal_card(subtema, tipo, texto):
     </div>
     """, unsafe_allow_html=True)
 
-# HELPER: GRÁFICO CON ZOOM INTELIGENTE (CORREGIDO)
+# HELPER: GRÁFICO CON ZOOM INTELIGENTE
 def plot_zoom_chart(df, x_col, y_col, color, chart_type='line'):
     if df.empty: return None
     
-    # Convertir a numérico para evitar error de resta con string
+    # Conversión explícita a numérico para evitar errores de resta
     df[x_col] = pd.to_numeric(df[x_col], errors='coerce')
     df = df.dropna(subset=[x_col])
     
@@ -363,7 +399,6 @@ def view_inicio():
 def view_candidatos():
     render_section_header("Candidatos", "Directorio completo de aspirantes a la presidencia.")
     
-    # Función de navegación interna
     def go_to_plan(name):
         st.session_state['page_selection'] = 'Planes de Gobierno'
         st.session_state['selected_candidate'] = name
@@ -525,37 +560,53 @@ def view_indicadores():
         with c1:
             st.markdown('<div class="radio-card"><div class="radio-title">Indicadores de Gobernanza (0-100)</div>', unsafe_allow_html=True)
             if not df_gob.empty: 
-                fig_gob = px.bar(df_gob, x='Puntaje', y='Indicador', orientation='h', template='plotly_white')
-                fig_gob.update_traces(marker_color='#7C3AED')
-                fig_gob.update_xaxes(range=[0, 25])
-                fig_gob.update_layout(height=250)
-                st.plotly_chart(fig_gob, use_container_width=True)
+                st.plotly_chart(plot_zoom_chart(df_gob, 'Año', 'Puntuación', '#7C3AED', 'line'), use_container_width=True)
             else: st.info("Datos de gobernanza no disponibles.")
             st.markdown('</div>', unsafe_allow_html=True)
         with c2:
             st.markdown('<div class="radio-card"><div class="radio-title">Deuda Pública</div>', unsafe_allow_html=True)
             if not df_deuda.empty: st.plotly_chart(plot_zoom_chart(df_deuda, 'Año', 'Soles', '#F59E0B', 'line'), use_container_width=True)
-            else: st.info("Sube 'deuda_publica.csv' a data/")
+            else: st.info("Datos de deuda no disponibles.")
             st.markdown('</div>', unsafe_allow_html=True)
 
 def view_participacion():
-    st.title("Participación")
-    st.text_area("Deja tu comentario")
+    st.title("Participación Ciudadana")
+    st.markdown("""
+    <div class="kpi-card" style="text-align: center; padding: 30px;">
+        <h3>¿Quieres recibir actualizaciones semanales?</h3>
+        <p style="color: #64748B;">Únete a nuestra lista de difusión para estar informado sobre los candidatos y propuestas.</p>
+        <a href="https://script.google.com/macros/s/AKfycbwAd1MlRBtT2SnGxG8DRbmxWZcaEKLJz9gMQcwiuGJ2Zr_wmHmBNfeCh9CAKVf0UpQL/exec" target="_blank" style="display: inline-block; background-color: #2563EB; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; margin-top: 10px;">
+            Suscribirme a las Alertas 📩
+        </a>
+    </div>
+    """, unsafe_allow_html=True)
 
 def view_fuente():
-    st.json({"Fuente": "Banco Mundial + JNE + INEI + CEPAL + GFW"})
+    st.markdown("## Fuentes de Datos")
+    st.markdown("""
+    <div class="kpi-card">
+        <h4>Datos Económicos y Sociales</h4>
+        <ul>
+            <li><b>Banco Mundial:</b> <a href="https://datos.bancomundial.org/indicator/NY.GDP.MKTP.KD.ZG?locations=PE">Crecimiento PIB</a>, <a href="https://datos.bancomundial.org/indicador/SL.UEM.TOTL.ZS?locations=PE">Desempleo</a>, <a href="https://datos.bancomundial.org/tema/pobreza?locations=PE">Pobreza</a>, <a href="https://datos.bancomundial.org/indicador/SI.POV.GINI?locations=PE">Gini</a>.</li>
+            <li><b>BCRP:</b> <a href="https://estadisticas.bcrp.gob.pe/estadisticas/series/trimestrales/resultados/PN03371FQ/html">Deuda Pública</a>.</li>
+        </ul>
+        <h4>Datos Sectoriales</h4>
+        <ul>
+            <li><b>Educación (MINEDU/ESCALE):</b> <a href="https://escale.minedu.gob.pe/">Tasa de analfabetismo y Déficit de servicios</a>.</li>
+            <li><b>Infraestructura (CEPAL):</b> <a href="https://statistics.cepal.org/portal/inequalities/housing-and-basic-services.html?lang=es&indicator=260">Servicios Básicos</a>, <a href="https://statistics.cepal.org/portal/inequalities/housing-and-basic-services.html?lang=es&indicator=4623">Acceso a Internet</a>.</li>
+            <li><b>Ambiente:</b> <a href="https://www.globalforestwatch.org/dashboards/country/PER/">Pérdida de Bosques (GFW)</a>, <a href="https://datosmacro.expansion.com/energia-y-medio-ambiente/emisiones-co2/peru">Emisiones CO2</a>.</li>
+            <li><b>Gobernanza:</b> <a href="https://www.worldbank.org/en/publication/worldwide-governance-indicators/interactive-data-access">Indicadores WGI</a>.</li>
+        </ul>
+    </div>
+    """, unsafe_allow_html=True)
 
 # --- 5. NAVEGACIÓN ---
 st.sidebar.markdown("""<div class="sidebar-header"><div class="sidebar-logo">ME</div><div><div class="sidebar-main-title">Monitor Electoral</div><div class="sidebar-subtitle">Perú 2026</div></div></div>""", unsafe_allow_html=True)
 
+# Lógica de Navegación
 if 'page_selection' not in st.session_state:
     st.session_state['page_selection'] = 'Inicio'
 
-# Simular sincronización sin callback
-def update_selection(sel):
-    st.session_state['page_selection'] = sel
-
-# Calcular índice
 options = ["Inicio", "Candidatos", "Planes de Gobierno", "Indicadores Nacionales", "Participación Ciudadana", "Fuente de Datos"]
 try:
     idx = options.index(st.session_state['page_selection'])
@@ -576,7 +627,6 @@ with st.sidebar:
         }
     )
     
-    # Actualizar estado SOLO si cambió la selección visualmente
     if selected != st.session_state['page_selection']:
         st.session_state['page_selection'] = selected
         st.rerun()
@@ -584,10 +634,21 @@ with st.sidebar:
     st.markdown("---")
     st.caption("© 2026 Monitor Electoral")
 
-# Router basado en estado
+# Router
 if st.session_state['page_selection'] == "Inicio": view_inicio()
 elif st.session_state['page_selection'] == "Candidatos": view_candidatos()
 elif st.session_state['page_selection'] == "Planes de Gobierno": view_planes()
 elif st.session_state['page_selection'] == "Indicadores Nacionales": view_indicadores()
 elif st.session_state['page_selection'] == "Participación Ciudadana": view_participacion()
 elif st.session_state['page_selection'] == "Fuente de Datos": view_fuente()
+
+# Chatbot
+components.html("""
+<script src="https://www.gstatic.com/dialogflow-console/fast/messenger/bootstrap.js?v=1"></script>
+<df-messenger
+  intent="WELCOME"
+  chat-title="Asistente Informado 🤖"
+  agent-id="0dc0a346-2828-4cb8-a95e-14c5ba301baa"
+  language-code="es"
+></df-messenger>
+""", height=600)
