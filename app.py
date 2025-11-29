@@ -31,6 +31,21 @@ st.set_page_config(
 
 # --- CSS PERSONALIZADO ---
 def local_css():
+    # Reemplaza por tu URL pública (raw.githubusercontent u otro host)
+favicon_url = "https://portal.jne.gob.pe/portal_documentos/files/0002f76f-8c45-4235-af19-8d33a3a9b338.png"
+
+components.html(f"""
+<script>
+(function() {{
+  var link = document.querySelector("link[rel*='icon']") || document.createElement('link');
+  link.type = 'image/x-icon';
+  link.rel = 'shortcut icon';
+  link.href = '{favicon_url}';
+  document.getElementsByTagName('head')[0].appendChild(link);
+}})();
+</script>
+""", height=0)
+
     st.markdown("""
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
