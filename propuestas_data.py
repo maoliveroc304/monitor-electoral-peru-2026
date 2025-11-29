@@ -2,15 +2,15 @@ import pandas as pd
 
 def obtener_data_propuestas():
     """
-    Base de datos de propuestas extraídas de los Planes de Gobierno.
-    Ejes: Economía, Social, Educación, Salud, Seguridad, Infraestructura, Ambiente, Gobernanza.
+    Base de datos de propuestas extraídas de los Planes de Gobierno (2026).
+    Fuente: Documentos proporcionados.
     """
     
     data = [
         # --- ACCIÓN POPULAR (Julio Chávez) ---
         {
             "Candidato": "Julio Chávez", "Partido": "Acción Popular",
-            "Eje": "Economía", "Subtema": "Empleo y Reactivación",
+            "Eje": "Economía", "Subtema": "Reactivación y Empleo",
             "Texto": "Ejecutar política expansiva con gasto eficiente para crear 5 millones de puestos de trabajo. Lema: 'Trabajar y dejar trabajar'.",
             "Tipo": "Programa"
         },
@@ -109,6 +109,27 @@ def obtener_data_propuestas():
             "Eje": "Gobernanza", "Subtema": "Descentralización",
             "Texto": "Nueva Ley de Descentralización Fiscal y Gobierno Electrónico en ministerios.",
             "Tipo": "Ley"
+        },
+         # --- ALIANZA PARA EL PROGRESO (César Acuña) ---
+        {
+            "Candidato": "César Acuña", "Partido": "Alianza para el Progreso",
+            "Eje": "Seguridad", "Subtema": "Tecnología y Barrio Seguro",
+            "Texto": "Implementación de sistemas de videovigilancia integrados y fortalecimiento del patrullaje municipal en coordinación con la PNP.",
+            "Tipo": "Inversión"
+        },
+        {
+            "Candidato": "César Acuña", "Partido": "Alianza para el Progreso",
+            "Eje": "Infraestructura", "Subtema": "Carreteras",
+            "Texto": "Mejoramiento de la red vial nacional y caminos vecinales para conectar a los agricultores con los mercados.",
+            "Tipo": "Obra"
+        },
+        
+        # --- AVANZA PAÍS (Phillip Butters) ---
+        {
+            "Candidato": "Phillip Butters", "Partido": "Avanza País",
+            "Eje": "Economía", "Subtema": "Libre Mercado",
+            "Texto": "Defensa irrestricta de la propiedad privada y reducción del aparato estatal para fomentar la inversión privada.",
+            "Tipo": "Política"
         }
     ]
 
